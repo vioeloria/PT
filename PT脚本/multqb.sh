@@ -1,6 +1,6 @@
 #!/bin/bash
 # qBittorrent 多开配置脚本
-# 自动检测配置文件中实际存在的端口字段，无需手动输入版本号
+# 自动识别 4.x / 5.x 配置格式差异，正确处理双端口字段
 
 # ── 颜色 ────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -18,7 +18,7 @@ need_input(){ echo -e "${YELLOW}[INPUT]${NC} $1"; }
 # ── 帮助 ────────────────────────────────────────────────────────
 show_help() {
     cat << EOF
-qBittorrent 多开配置脚本
+qBittorrent 多开配置脚本（支持 4.x / 5.x）
 
 用法:
     $0 <实例数量> [起始WebUI端口] [用户名前缀] [基础用户名]
@@ -26,51 +26,74 @@ qBittorrent 多开配置脚本
     $0 -h / --help
 
 示例:
-    $0 3                          # 创建3个实例，端口从8081起
+    $0 3                          # 创建3个实例，WebUI端口从8081起
     $0 2 8033                     # 创建2个实例，WebUI端口8033-8034
     $0 3 9000 qbuser heshui      # 完整参数
 
-功能说明:
-    - 自动检测基础配置文件中实际存在的 BT 端口字段，无需手动输入版本号
-    - 支持 Connection\\PortRangeMin（主流写法）和 BitTorrent\\Session\\Port
-    - 完整替换配置文件中的所有路径引用（含 [BitTorrent] 段）
-    - 创建系统用户、独立配置目录、下载目录、systemd 服务
+版本差异说明:
+    4.x: BT端口只有 [Preferences] Connection\PortRangeMin
+         下载路径在 [Preferences] Downloads\SavePath
+
+    5.x: BT端口有两处，两处都必须修改才能生效:
+           [Preferences] Connection\PortRangeMin
+           [BitTorrent]  Session\Port
+         下载路径在 [BitTorrent] Session\DefaultSavePath
+
+    脚本会自动检测格式并正确处理，无需手动输入版本号。
 
 EOF
 }
 
-# ── 端口字段自动检测 ─────────────────────────────────────────────
-# 直接读配置文件，检测哪个字段实际存在，不依赖用户输入版本号
-detect_port_key() {
+# ════════════════════════════════════════════════════════════════
+# 配置格式检测
+# 判断依据：5.x 在 [BitTorrent] 段里有 Session\Port 字段
+# ════════════════════════════════════════════════════════════════
+detect_config_version() {
     local config_file="$1"
-
-    if grep -q "^Connection\\\\PortRangeMin=" "$config_file"; then
-        echo "Connection\\PortRangeMin"
-    elif grep -q "^BitTorrent\\\\Session\\\\Port=" "$config_file"; then
-        echo "BitTorrent\\Session\\Port"
+    if grep -q "^Session\\\\Port=" "$config_file"; then
+        echo "5x"
     else
-        echo "MISSING"
+        echo "4x"
     fi
 }
 
-# 根据检测到的 key 读取端口值
-read_port_by_key() {
+# 读取指定字段的值（自动处理转义）
+# 用法: read_field <文件> <字段名>
+# 字段名示例: "Connection\PortRangeMin" 或 "Session\Port"
+read_field() {
     local config_file="$1"
-    local key="$2"
-    # key 中的 \ 在 grep/sed 里需要转义为 \\
-    local escaped_key
-    escaped_key=$(echo "$key" | sed 's/\\/\\\\/g')
-    grep "^${escaped_key}=" "$config_file" | cut -d'=' -f2 | tr -d '\r'
+    local field="$2"
+    local escaped
+    escaped=$(echo "$field" | sed 's/\\/\\\\/g')
+    grep "^${escaped}=" "$config_file" | cut -d'=' -f2- | tr -d '\r'
+}
+
+# 设置指定字段的值，字段不存在则追加到对应 section 末尾
+# 用法: set_field <文件> <字段名> <值> <所属section>
+set_field() {
+    local config_file="$1"
+    local field="$2"
+    local value="$3"
+    local section="$4"
+    local escaped
+    escaped=$(echo "$field" | sed 's/\\/\\\\/g')
+
+    if grep -q "^${escaped}=" "$config_file"; then
+        sed -i "s|^${escaped}=.*|${escaped}=${value}|" "$config_file"
+    else
+        warn "字段 $field 不存在，追加到 [$section] 段"
+        sed -i "/^\[${section}\]/a ${escaped}=${value}" "$config_file"
+    fi
 }
 
 # ── 端口占用检查 ─────────────────────────────────────────────────
 check_port_free() {
     local port="$1"
-    if ss -tulpn 2>/dev/null | grep -q ":${port} " || \
-       netstat -tulpn 2>/dev/null | grep -q ":${port} "; then
-        return 1   # 被占用
+    if ss -tulpn 2>/dev/null | grep -q ":${port}[[:space:]]" || \
+       netstat -tulpn 2>/dev/null | grep -q ":${port}[[:space:]]"; then
+        return 1
     fi
-    return 0       # 空闲
+    return 0
 }
 
 # ── 创建系统用户 ─────────────────────────────────────────────────
@@ -161,14 +184,11 @@ interactive_input() {
 # 主程序
 # ════════════════════════════════════════════════════════════════
 
-# root 检查
 [ "$EUID" -ne 0 ] && { error "需要 root 权限，请使用 sudo 运行"; exit 1; }
 
-# qbittorrent-nox 检查
 QB_NOX_PATH=$(which qbittorrent-nox 2>/dev/null)
 [ -z "$QB_NOX_PATH" ] && { error "未找到 qbittorrent-nox，请先安装"; exit 1; }
 
-# 参数处理
 if [ $# -eq 0 ]; then
     interactive_input
 elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -197,26 +217,26 @@ BASE_HOME="/home/$BASE_USER"
 BASE_CONFIG_DIR="$BASE_HOME/.config/qBittorrent"
 BASE_CONFIG_FILE="$BASE_CONFIG_DIR/qBittorrent.conf"
 
-# 基础用户 / 配置校验
 id -u "$BASE_USER" > /dev/null 2>&1 || { error "基础用户不存在: $BASE_USER"; exit 1; }
 [ -d "$BASE_CONFIG_DIR" ]  || { error "基础配置目录不存在: $BASE_CONFIG_DIR"; exit 1; }
 [ -f "$BASE_CONFIG_FILE" ] || { error "配置文件不存在: $BASE_CONFIG_FILE"; exit 1; }
 
-# ── 自动检测端口字段 ────────────────────────────────────────────
-PORT_KEY=$(detect_port_key "$BASE_CONFIG_FILE")
+# ── 自动检测配置版本格式 ────────────────────────────────────────
+CONFIG_VER=$(detect_config_version "$BASE_CONFIG_FILE")
 
-if [ "$PORT_KEY" = "MISSING" ]; then
-    warn "配置文件中未找到已知的 BT 端口字段"
-    warn "将使用默认值 6881 并在新配置中写入 Connection\\PortRangeMin"
-    BASE_BT_PORT=6881
-    PORT_KEY="Connection\\PortRangeMin"
+if [ "$CONFIG_VER" = "5x" ]; then
+    # 5.x：[BitTorrent] Session\Port 是实际生效的端口
+    BASE_BT_PORT=$(read_field "$BASE_CONFIG_FILE" "Session\\Port")
+    [ -z "$BASE_BT_PORT" ] && BASE_BT_PORT=6881 && warn "未读到 Session\\Port，使用默认 6881"
+    info "检测到 5.x 配置格式"
+    info "BT端口来源: [BitTorrent] Session\\Port = $BASE_BT_PORT"
+    info "（同时会同步更新 [Preferences] Connection\\PortRangeMin）"
 else
-    BASE_BT_PORT=$(read_port_by_key "$BASE_CONFIG_FILE" "$PORT_KEY")
-    if [ -z "$BASE_BT_PORT" ]; then
-        warn "读取端口值失败，使用默认值 6881"
-        BASE_BT_PORT=6881
-    fi
-    info "自动检测端口字段: $PORT_KEY = $BASE_BT_PORT"
+    # 4.x：[Preferences] Connection\PortRangeMin
+    BASE_BT_PORT=$(read_field "$BASE_CONFIG_FILE" "Connection\\PortRangeMin")
+    [ -z "$BASE_BT_PORT" ] && BASE_BT_PORT=6881 && warn "未读到 Connection\\PortRangeMin，使用默认 6881"
+    info "检测到 4.x 配置格式"
+    info "BT端口来源: [Preferences] Connection\\PortRangeMin = $BASE_BT_PORT"
 fi
 
 # ── 端口冲突预检 ────────────────────────────────────────────────
@@ -225,7 +245,6 @@ CONFLICT=()
 for i in $(seq 1 "$NUM_INSTANCES"); do
     WEBUI_PORT=$((START_PORT + i - 1))
     BT_PORT=$((BASE_BT_PORT + i * 2))
-
     check_port_free "$WEBUI_PORT" || CONFLICT+=("WebUI 端口 $WEBUI_PORT 已被占用")
     check_port_free "$BT_PORT"    || CONFLICT+=("BT 端口 $BT_PORT 已被占用")
 done
@@ -237,17 +256,16 @@ if [ ${#CONFLICT[@]} -gt 0 ]; then
 fi
 success "端口检查通过"
 
-# ── 汇总确认 ────────────────────────────────────────────────────
 echo ""
 echo "========================================="
 echo " qBittorrent 多开配置"
 echo "========================================="
+info "配置格式   : $CONFIG_VER"
 info "实例数量   : $NUM_INSTANCES"
 info "起始端口   : $START_PORT"
 info "用户前缀   : $USER_PREFIX"
 info "基础用户   : $BASE_USER"
-info "BT端口字段 : $PORT_KEY"
-info "基础BT端口 : $BASE_BT_PORT"
+info "基础BT端口 : $BASE_BT_PORT  →  实例1=$((BASE_BT_PORT+2))  实例2=$((BASE_BT_PORT+4)) ..."
 info "qb路径     : $QB_NOX_PATH"
 info "默认密码   : $DEFAULT_PASSWORD"
 echo ""
@@ -273,7 +291,7 @@ for i in $(seq 1 "$NUM_INSTANCES"); do
     create_system_user "$NEW_USER" "$DEFAULT_PASSWORD" || continue
     CREATED_USERS+=("$NEW_USER")
 
-    # 2. 确保 .config 目录存在（以用户身份创建，保证属主正确）
+    # 2. 确保 .config 目录存在
     sudo -u "$NEW_USER" mkdir -p "$NEW_HOME/.config"
 
     # 3. 复制基础配置目录
@@ -286,44 +304,64 @@ for i in $(seq 1 "$NUM_INSTANCES"); do
     chown -R "$NEW_USER:$NEW_USER" "$NEW_CONFIG_DIR"
     success "配置目录复制完成"
 
-    # 4. 创建工作目录 / 下载目录
+    # 4. 创建下载目录
     sudo -u "$NEW_USER" mkdir -p "$NEW_HOME/qbittorrent/Downloads"
-    info "工作目录: $NEW_HOME/qbittorrent/Downloads"
+    info "下载目录: $NEW_HOME/qbittorrent/Downloads"
 
     # 5. 修改配置文件
-    if [ -f "$NEW_CONFIG_FILE" ]; then
-        info "修改配置文件..."
+    if [ ! -f "$NEW_CONFIG_FILE" ]; then
+        warn "配置文件不存在，跳过修改: $NEW_CONFIG_FILE"
+    else
+        info "修改配置文件（$CONFIG_VER 格式）..."
 
-        # 5a. WebUI 端口
-        sed -i "s/^WebUI\\\\Port=.*/WebUI\\\\Port=$NEW_WEBUI_PORT/" "$NEW_CONFIG_FILE"
+        # 5a. WebUI 端口（所有版本相同）
+        set_field "$NEW_CONFIG_FILE" "WebUI\\Port" "$NEW_WEBUI_PORT" "Preferences"
 
-        # 5b. BT 端口（使用检测到的实际字段）
-        #     PORT_KEY 示例: "Connection\PortRangeMin" 或 "BitTorrent\Session\Port"
-        #     在 sed 的替换模式中需要将 \ 转义为 \\
-        ESCAPED_KEY=$(echo "$PORT_KEY" | sed 's/\\/\\\\/g')
-        if grep -q "^${ESCAPED_KEY}=" "$NEW_CONFIG_FILE"; then
-            sed -i "s/^${ESCAPED_KEY}=.*/${ESCAPED_KEY}=${NEW_BT_PORT}/" "$NEW_CONFIG_FILE"
+        if [ "$CONFIG_VER" = "5x" ]; then
+            # 5.x：两处 BT 端口都要改
+            # [BitTorrent] Session\Port ← 实际控制监听端口
+            set_field "$NEW_CONFIG_FILE" "Session\\Port" "$NEW_BT_PORT" "BitTorrent"
+            # [Preferences] Connection\PortRangeMin ← 同步，避免 WebUI 显示不一致
+            set_field "$NEW_CONFIG_FILE" "Connection\\PortRangeMin" "$NEW_BT_PORT" "Preferences"
         else
-            # 字段不存在时追加到 [Preferences] 段后
-            warn "未找到 $PORT_KEY 字段，尝试追加..."
-            sed -i "/^\[Preferences\]/a ${ESCAPED_KEY}=${NEW_BT_PORT}" "$NEW_CONFIG_FILE"
+            # 4.x：只有 [Preferences] Connection\PortRangeMin
+            set_field "$NEW_CONFIG_FILE" "Connection\\PortRangeMin" "$NEW_BT_PORT" "Preferences"
         fi
 
-        # 5c. 全文替换所有路径引用（涵盖 [Preferences] 和 [BitTorrent] 段）
-        #     将 /home/<BASE_USER>/ 全部替换为 /home/<NEW_USER>/
+        # 5b. 关闭随机端口（两个版本都处理，防止安装时被默认开启）
+        set_field "$NEW_CONFIG_FILE" "Connection\\UseRandomPort" "false" "Preferences"
+
+        # 5c. 全文替换所有路径引用（覆盖所有 section）
         sed -i "s|/home/${BASE_USER}/|/home/${NEW_USER}/|g" "$NEW_CONFIG_FILE"
 
-        # 5d. 验证关键字段
-        VERIFY_WEBUI=$(grep "^WebUI\\\\Port=" "$NEW_CONFIG_FILE" | cut -d'=' -f2 | tr -d '\r')
-        VERIFY_BT=$(grep "^${ESCAPED_KEY}=" "$NEW_CONFIG_FILE" | cut -d'=' -f2 | tr -d '\r')
+        # 5d. 验证
+        VERIFY_WEBUI=$(read_field "$NEW_CONFIG_FILE" "WebUI\\Port")
+        VERIFY_RAND=$(read_field  "$NEW_CONFIG_FILE" "Connection\\UseRandomPort")
+        VERIFY_OK=true
 
-        if [ "$VERIFY_WEBUI" = "$NEW_WEBUI_PORT" ] && [ "$VERIFY_BT" = "$NEW_BT_PORT" ]; then
-            success "配置验证通过 (WebUI=$VERIFY_WEBUI, $PORT_KEY=$VERIFY_BT)"
+        if [ "$CONFIG_VER" = "5x" ]; then
+            VERIFY_SESSION=$(read_field "$NEW_CONFIG_FILE" "Session\\Port")
+            VERIFY_PREF=$(read_field    "$NEW_CONFIG_FILE" "Connection\\PortRangeMin")
+            [ "$VERIFY_WEBUI"   != "$NEW_WEBUI_PORT" ] && VERIFY_OK=false
+            [ "$VERIFY_SESSION" != "$NEW_BT_PORT"    ] && VERIFY_OK=false
+            [ "$VERIFY_PREF"    != "$NEW_BT_PORT"    ] && VERIFY_OK=false
+            [ "$VERIFY_RAND"    != "false"            ] && VERIFY_OK=false
+            if $VERIFY_OK; then
+                success "验证通过: WebUI=$VERIFY_WEBUI | Session\\Port=$VERIFY_SESSION | PortRangeMin=$VERIFY_PREF | UseRandomPort=false"
+            else
+                warn "验证异常: WebUI='$VERIFY_WEBUI'(应$NEW_WEBUI_PORT) Session\\Port='$VERIFY_SESSION'(应$NEW_BT_PORT) PortRangeMin='$VERIFY_PREF'(应$NEW_BT_PORT) UseRandomPort='$VERIFY_RAND'(应false)"
+            fi
         else
-            warn "配置验证异常 (WebUI='$VERIFY_WEBUI'应为$NEW_WEBUI_PORT, BT='$VERIFY_BT'应为$NEW_BT_PORT)"
+            VERIFY_BT=$(read_field "$NEW_CONFIG_FILE" "Connection\\PortRangeMin")
+            [ "$VERIFY_WEBUI" != "$NEW_WEBUI_PORT" ] && VERIFY_OK=false
+            [ "$VERIFY_BT"    != "$NEW_BT_PORT"    ] && VERIFY_OK=false
+            [ "$VERIFY_RAND"  != "false"            ] && VERIFY_OK=false
+            if $VERIFY_OK; then
+                success "验证通过: WebUI=$VERIFY_WEBUI | PortRangeMin=$VERIFY_BT | UseRandomPort=false"
+            else
+                warn "验证异常: WebUI='$VERIFY_WEBUI'(应$NEW_WEBUI_PORT) PortRangeMin='$VERIFY_BT'(应$NEW_BT_PORT) UseRandomPort='$VERIFY_RAND'(应false)"
+            fi
         fi
-    else
-        warn "配置文件不存在，跳过修改: $NEW_CONFIG_FILE"
     fi
 
     # 6. 创建 systemd 服务
@@ -377,30 +415,32 @@ if [ ${#CREATED_USERS[@]} -eq 0 ]; then
     exit 1
 fi
 
-# 端口分配表
+if [ "$CONFIG_VER" = "5x" ]; then
+    BT_LABEL="BT端口(Session\\Port & PortRangeMin)"
+else
+    BT_LABEL="BT端口(PortRangeMin)"
+fi
+
 info "📊 端口分配："
-printf "   %-16s %-12s %-12s\n" "用户名" "WebUI端口" "$PORT_KEY"
-echo "   ──────────────────────────────────────────"
+printf "   %-16s %-12s %-s\n" "用户名" "WebUI端口" "$BT_LABEL"
+echo "   ──────────────────────────────────────────────────────"
 for entry in "${PORT_ASSIGNMENTS[@]}"; do
     IFS='|' read -r uname wport bport <<< "$entry"
-    printf "   %-16s %-12s %-12s\n" "$uname" "$wport" "$bport"
+    printf "   %-16s %-12s %-s\n" "$uname" "$wport" "$bport"
 done
 
-# BT 端口递增规则说明
 echo ""
-info "📋 BT 端口递增规则（基础 $BASE_BT_PORT，步长 2）："
+info "📋 BT 端口递增（基础 $BASE_BT_PORT，步长 2）："
 for i in $(seq 1 "$NUM_INSTANCES"); do
     echo "   实例 $i (${USER_PREFIX}${i}): $((BASE_BT_PORT + i * 2))"
 done
 
-# 用户密码
 echo ""
 info "👤 用户信息（密码均为: $DEFAULT_PASSWORD）："
 for uname in "${CREATED_USERS[@]}"; do
     echo "   $uname"
 done
 
-# Web 访问地址
 echo ""
 info "🌐 Web 界面访问地址："
 for entry in "${PORT_ASSIGNMENTS[@]}"; do
@@ -408,33 +448,23 @@ for entry in "${PORT_ASSIGNMENTS[@]}"; do
     echo "   $uname  →  http://$HOST_IP:$wport"
 done
 
-# 服务管理命令
-echo ""
-info "🚀 服务管理命令："
-
 ALL_SERVICES="${CREATED_SERVICES[*]}"
 
 echo ""
+info "🚀 服务管理命令："
+echo ""
 echo "   # 启动全部"
 echo "   systemctl start $ALL_SERVICES"
-
 echo ""
 echo "   # 停止全部"
 echo "   systemctl stop $ALL_SERVICES"
-
 echo ""
 echo "   # 重启全部"
 echo "   systemctl restart $ALL_SERVICES"
-
 echo ""
 echo "   # 查看全部状态"
 echo "   systemctl status $ALL_SERVICES"
-
 echo ""
-echo "   # 单独操作示例（以第1个实例为例）"
-echo "   systemctl start  ${CREATED_SERVICES[0]}"
-echo "   systemctl stop   ${CREATED_SERVICES[0]}"
-echo "   systemctl status ${CREATED_SERVICES[0]}"
+echo "   # 实时日志（以第1个实例为例）"
 echo "   journalctl -u ${CREATED_SERVICES[0]} -f"
-
 echo ""
