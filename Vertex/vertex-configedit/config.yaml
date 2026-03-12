@@ -1,0 +1,10 @@
+# Vertex 批量修改工具 配置文件
+# 将本文件放在脚本同目录，程序启动时会自动读取
+
+vertex:
+  url: ""   # Vertex 服务地址
+  username: "admin"                  # 登录用户名
+
+  # 密码二选一：
+  password: ""                       # 明文密码（推荐，程序自动 MD5）
+  # password_md5: ""                 # 或者直接填 MD5 哈希（32位小写）
