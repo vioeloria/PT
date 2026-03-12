@@ -1,1042 +1,691 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Netcup 流量监控面板</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
-        }
-
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            padding: 30px 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-            margin-bottom: 30px;
-            animation: slideDown 0.5s ease;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .header h1 {
-            font-size: 36px;
-            color: #333;
-            margin-bottom: 25px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .view-switcher {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .view-btn {
-            padding: 12px 24px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #667eea;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            font-size: 14px;
-        }
-
-        .view-btn:hover {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .view-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-top: 25px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-        }
-
-        .stat-card h3 {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        .stat-card .value {
-            font-size: 48px;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        .stat-card .subvalue {
-            font-size: 18px;
-            margin-top: 10px;
-            opacity: 0.9;
-        }
-
-        .stat-card.warning {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3);
-        }
-
-        .stat-card.success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            box-shadow: 0 5px 20px rgba(79, 172, 254, 0.3);
-        }
-
-        .stat-card.availability {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            box-shadow: 0 5px 20px rgba(56, 239, 125, 0.3);
-        }
-
-        .servers-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-            gap: 25px;
-            animation: fadeIn 0.6s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .server-card {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-
-        .server-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
-            border-color: #667eea;
-        }
-
-        .server-card.throttled {
-            border-color: #f5576c;
-            background: linear-gradient(to bottom, #fff 0%, #fff5f7 100%);
-        }
-
-        .server-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 25px;
-            padding-bottom: 20px;
-            border-bottom: 3px solid #f0f0f0;
-        }
-
-        .server-title {
-            font-size: 20px;
-            font-weight: 800;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .server-title .name {
-            font-size: 22px;
-        }
-
-        .server-title .ip {
-            font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .server-title .account {
-            font-size: 12px;
-            color: #667eea;
-            font-weight: 600;
-            background: #f0f4ff;
-            padding: 4px 12px;
-            border-radius: 8px;
-            display: inline-block;
-            width: fit-content;
-        }
-
-        .badge {
-            padding: 8px 16px;
-            border-radius: 25px;
-            font-size: 12px;
-            font-weight: 700;
-            color: white;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .badge.throttled {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
-        }
-
-        .badge.normal {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            box-shadow: 0 4px 15px rgba(56, 239, 125, 0.4);
-        }
-
-        .throttle-status {
-            background: linear-gradient(135deg, #fff5f7 0%, #ffe8ec 100%);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            border-left: 4px solid #f5576c;
-        }
-
-        .throttle-status.normal {
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            border-left-color: #38ef7d;
-        }
-
-        .throttle-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .throttle-stat-item {
-            background: white;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .throttle-stat-label {
-            font-size: 11px;
-            color: #6b7280;
-            margin-bottom: 5px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .throttle-stat-value {
-            font-size: 20px;
-            font-weight: 800;
-            color: #333;
-        }
-
-        .throttle-stat-value.large {
-            font-size: 28px;
-            color: #f5576c;
-        }
-
-        .throttle-stat-value.normal {
-            color: #38ef7d;
-        }
-
-        .server-info {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .info-item {
-            background: linear-gradient(135deg, #f9fafb 0%, #f0f4f8 100%);
-            padding: 18px;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .info-item:hover {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            transform: scale(1.05);
-        }
-
-        .info-item:hover .info-label {
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .info-item:hover .info-value {
-            color: white;
-        }
-
-        .info-label {
-            font-size: 11px;
-            color: #6b7280;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        .info-value {
-            font-size: 20px;
-            font-weight: 800;
-            color: #111827;
-        }
-
-        .servers-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .server-list-item {
-            background: white;
-            border-radius: 15px;
-            padding: 25px 30px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            border-left: 5px solid #667eea;
-            display: grid;
-            grid-template-columns: 280px 1fr auto;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .server-list-item:hover {
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-            transform: translateX(5px);
-        }
-
-        .server-list-item.throttled {
-            border-left-color: #f5576c;
-            background: linear-gradient(to right, #fff5f7 0%, #fff 100%);
-        }
-
-        .list-server-info {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .list-server-name {
-            font-size: 18px;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .list-server-ip {
-            font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .list-server-account {
-            font-size: 11px;
-            color: #667eea;
-            font-weight: 600;
-            background: #f0f4ff;
-            padding: 3px 10px;
-            border-radius: 6px;
-            display: inline-block;
-            width: fit-content;
-        }
-
-        .list-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-        }
-
-        .list-stat {
-            text-align: center;
-        }
-
-        .list-stat-label {
-            font-size: 11px;
-            color: #6b7280;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-
-        .list-stat-value {
-            font-size: 16px;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .list-status-badge {
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 700;
-            text-align: center;
-            min-width: 100px;
-        }
-
-        .list-status-badge.throttled {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
-        .list-status-badge.normal {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-        }
-
-        .servers-compact {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 15px;
-        }
-
-        .server-compact-item {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            border-left: 4px solid #667eea;
-        }
-
-        .server-compact-item:hover {
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-            transform: translateY(-3px);
-        }
-
-        .server-compact-item.throttled {
-            border-left-color: #f5576c;
-        }
-
-        .compact-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .compact-title-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .compact-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .compact-account {
-            font-size: 10px;
-            color: #667eea;
-            font-weight: 600;
-            background: #f0f4ff;
-            padding: 2px 8px;
-            border-radius: 6px;
-            display: inline-block;
-            width: fit-content;
-        }
-
-        .compact-badge {
-            padding: 5px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 700;
-            color: white;
-        }
-
-        .compact-badge.throttled {
-            background: #f5576c;
-        }
-
-        .compact-badge.normal {
-            background: #38ef7d;
-        }
-
-        .compact-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            font-size: 13px;
-        }
-
-        .compact-stat {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px;
-            background: #f9fafb;
-            border-radius: 6px;
-        }
-
-        .compact-stat-label {
-            color: #6b7280;
-            font-weight: 600;
-        }
-
-        .compact-stat-value {
-            font-weight: 700;
-            color: #333;
-        }
-
-        .servers-table-container {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-        }
-
-        .servers-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .servers-table thead {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .servers-table th {
-            padding: 15px;
-            text-align: left;
-            font-weight: 700;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .servers-table td {
-            padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 14px;
-        }
-
-        .servers-table tbody tr {
-            transition: all 0.3s ease;
-        }
-
-        .servers-table tbody tr:hover {
-            background: #f9fafb;
-        }
-
-        .servers-table tbody tr.throttled {
-            background: #fff5f7;
-        }
-
-        .table-status {
-            padding: 6px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 700;
-            color: white;
-            display: inline-block;
-        }
-
-        .table-status.throttled {
-            background: #f5576c;
-        }
-
-        .table-status.normal {
-            background: #38ef7d;
-        }
-
-        .table-account-badge {
-            font-size: 11px;
-            color: #667eea;
-            font-weight: 600;
-            background: #f0f4ff;
-            padding: 3px 8px;
-            border-radius: 6px;
-            display: inline-block;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 60px;
-            color: white;
-            font-size: 20px;
-            font-weight: 600;
-            animation: pulse 1.5s ease infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.5;
-            }
-        }
-
-        .last-update {
-            text-align: center;
-            color: white;
-            margin-top: 40px;
-            font-size: 16px;
-            font-weight: 500;
-            opacity: 0.9;
-        }
-
-        .refresh-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-            transition: all 0.3s ease;
-            z-index: 1000;
-        }
-
-        .refresh-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
-        }
-
-        .refresh-btn:active {
-            transform: translateY(0);
-        }
-
-        @media (max-width: 768px) {
-            .servers-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .servers-compact {
-                grid-template-columns: 1fr;
-            }
-
-            .server-list-item {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-
-            .list-stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .stats {
-                grid-template-columns: 1fr;
-            }
-
-            .header h1 {
-                font-size: 28px;
-            }
-
-            .view-switcher {
-                justify-content: center;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Netcup Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #10121a;
+    --surface:  #161921;
+    --border:   #1f2332;
+    --border2:  #272d3e;
+    --text:     #c8cdd8;
+    --muted:    #5d6480;
+    --accent:   #6b9cf0;
+    --green:    #4ec9a0;
+    --red:      #e07070;
+    --yellow:   #e8b84b;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.3px;
+  }
+
+  .divider-v {
+    width: 1px;
+    height: 18px;
+    background: var(--border2);
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 2s ease infinite;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sort-select {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .sort-select:focus { border-color: var(--accent); }
+
+  .btn-refresh {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+
+  .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Summary bar ── */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-item {
+    background: var(--bg);
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .summary-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+
+  .summary-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .summary-value.green { color: var(--green); }
+  .summary-value.red   { color: var(--red);   }
+  .summary-value.blue  { color: var(--accent); }
+
+  /* ── Main content ── */
+  .main {
+    padding: 16px 20px 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ── Server grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 10px;
+  }
+
+  /* ── Server card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+
+  .card:hover { border-color: var(--border2); }
+
+  .card.throttled {
+    border-color: rgba(245, 96, 96, .35);
+    background: linear-gradient(160deg, #1a1114 0%, var(--surface) 60%);
+  }
+
+  .card-head {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .card-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    word-break: break-all;
+    line-height: 1.3;
+  }
+
+  .card-meta {
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .card-ip {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .card-account {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    opacity: .8;
+  }
+
+  .tag {
+    flex-shrink: 0;
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+  }
+
+  .tag.normal   { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.25); }
+  .tag.throttled{ background: rgba(245,96,96,.12);  color: var(--red);   border: 1px solid rgba(245,96,96,.25);  }
+
+  /* ── Traffic rows ── */
+  .card-stats {
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .7px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .stat-value.up   { color: var(--accent); }
+  .stat-value.down { color: #a78bfa; }
+
+  /* ── Throttle info ── */
+  .card-throttle {
+    padding: 10px 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .tinfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .tinfo-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+  }
+
+  .tinfo-value {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tinfo-value.alert { color: var(--red); font-weight: 600; }
+  .tinfo-value.dim   { color: var(--muted); }
+
+  /* ── Server status row ── */
+  .card-foot {
+    padding: 7px 16px;
+    background: rgba(255,255,255,.02);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .foot-status {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .foot-status .dot-status {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .dot-status.on  { background: var(--green); }
+  .dot-status.off { background: var(--red); }
+
+  .foot-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ── Empty / Loading / Error states ── */
+  .state-box {
+    grid-column: 1 / -1;
+    padding: 60px 20px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .state-box .loader {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin-bottom: 12px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Bottom bar ── */
+  .bottombar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .countdown {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .countdown-bar {
+    width: 60px;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .countdown-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width .5s linear;
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 600px) {
+    .topbar { padding: 0 12px; }
+
+    .logo { font-size: 13px; }
+
+    .summary {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .summary-item { padding: 12px 14px; }
+
+    .summary-value { font-size: 20px; }
+
+    .main { padding: 12px 10px 56px; }
+
+    .grid { grid-template-columns: 1fr; gap: 8px; }
+
+    .sort-select { font-size: 10px; padding: 4px 7px; }
+
+    .btn-refresh { display: none; }
+
+    .bottombar { padding: 6px 12px; }
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🖥️ Netcup 流量监控面板</h1>
-            
-            <div class="view-switcher">
-                <button class="view-btn active" onclick="switchView('card')">🎴 卡片视图</button>
-                <button class="view-btn" onclick="switchView('list')">📋 列表视图</button>
-                <button class="view-btn" onclick="switchView('compact')">📦 紧凑视图</button>
-                <button class="view-btn" onclick="switchView('table')">📊 表格视图</button>
-            </div>
-            
-            <div class="view-switcher" style="margin-top: 15px;">
-                <button class="view-btn" onclick="sortServers('default')">🔄 默认排序</button>
-                <button class="view-btn" onclick="sortServers('traffic')">📊 总流量</button>
-                <button class="view-btn" onclick="sortServers('upload')">⬆️ 上传流量</button>
-                <button class="view-btn" onclick="sortServers('download')">⬇️ 下载流量</button>
-                <button class="view-btn" onclick="sortServers('throttle')">🔴 限速次数</button>
-                <button class="view-btn" onclick="sortServers('status')">⚠️ 限速状态</button>
-            </div>
 
-            <div id="stats" class="stats"></div>
-        </div>
-        <div id="servers"></div>
-        <div id="loading" class="loading">⏳ 正在加载数据...</div>
-        <div class="last-update" id="lastUpdate"></div>
+<!-- Top bar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="logo">NETCUP</span>
+    <div class="divider-v"></div>
+    <div class="status-pill">
+      <span class="dot" id="liveDot"></span>
+      <span id="liveLabel">LIVE</span>
     </div>
-    
-    <button class="refresh-btn" onclick="fetchData()">🔄 刷新数据</button>
+  </div>
+  <div class="topbar-right">
+    <select class="sort-select" id="sortSelect" onchange="applySort()">
+      <option value="default">默认排序</option>
+      <option value="traffic">总流量 ↓</option>
+      <option value="upload">上传 ↓</option>
+      <option value="download">下载 ↓</option>
+      <option value="throttle">限速次数 ↓</option>
+      <option value="status">限速优先</option>
+    </select>
+    <button class="btn-refresh" onclick="fetchData()">↺ 刷新</button>
+  </div>
+</header>
 
-    <script>
-        const API_URL = '/api/status';
-        const REFRESH_INTERVAL = 10000;
-        let currentData = null;
-        let currentView = 'card';
-        let currentSort = 'default';
-        let sortedServers = [];
+<!-- Summary bar -->
+<div class="summary" id="summary">
+  <div class="summary-item">
+    <div class="summary-label">总服务器</div>
+    <div class="summary-value blue" id="s-total">—</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">正常运行</div>
+    <div class="summary-value green" id="s-normal">—</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">限速中</div>
+    <div class="summary-value red" id="s-throttled">—</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">可用率</div>
+    <div class="summary-value" id="s-avail">—</div>
+  </div>
+</div>
 
-        async function fetchData() {
-            try {
-                const response = await fetch(API_URL);
-                const result = await response.json();
-                if (result.success) {
-                    currentData = result.data;
-                    updateView();
-                }
-            } catch (error) {
-                console.error('加载数据失败:', error);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        }
+<!-- Main -->
+<main class="main">
+  <div class="grid" id="grid">
+    <div class="state-box">
+      <div class="loader"></div>
+      <div>正在加载数据...</div>
+    </div>
+  </div>
+</main>
 
-        function formatTraffic(tib) {
-            if (tib >= 1) {
-                return `${tib.toFixed(3)} TiB`;
-            } else {
-                return `${(tib * 1024).toFixed(2)} GiB`;
-            }
-        }
+<!-- Bottom bar -->
+<div class="bottombar">
+  <span id="lastUpdate">—</span>
+  <div class="countdown">
+    <span id="countdownLabel">10s</span>
+    <div class="countdown-bar">
+      <div class="countdown-fill" id="countdownFill" style="width:100%"></div>
+    </div>
+  </div>
+</div>
 
-        function switchView(view) {
-            currentView = view;
-            
-            document.querySelectorAll('.view-switcher')[0].querySelectorAll('.view-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            updateView();
-        }
-        
-        function sortServers(sortType) {
-            currentSort = sortType;
-            
-            document.querySelectorAll('.view-switcher')[1].querySelectorAll('.view-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            if (!currentData || !currentData.servers) return;
-            
-            sortedServers = [...currentData.servers];
-            
-            switch(sortType) {
-                case 'traffic':
-                    sortedServers.sort((a, b) => b.traffic_tib - a.traffic_tib);
-                    break;
-                case 'upload':
-                    sortedServers.sort((a, b) => b.tx_tib - a.tx_tib);
-                    break;
-                case 'download':
-                    sortedServers.sort((a, b) => b.rx_tib - a.rx_tib);
-                    break;
-                case 'throttle':
-                    sortedServers.sort((a, b) => b.throttle_count - a.throttle_count);
-                    break;
-                case 'status':
-                    sortedServers.sort((a, b) => {
-                        if (a.trafficThrottled && !b.trafficThrottled) return -1;
-                        if (!a.trafficThrottled && b.trafficThrottled) return 1;
-                        return 0;
-                    });
-                    break;
-                default:
-                    break;
-            }
-            
-            updateView();
-        }
+<script>
+const API_URL = '/api/status';
+const INTERVAL = 10000;
+let rawServers = [];
+let countdown = INTERVAL / 1000;
+let timer;
 
-        function updateView() {
-            if (!currentData) return;
-            
-            if (sortedServers.length === 0) {
-                sortedServers = [...currentData.servers];
-            }
+// ── Format helpers ─────────────────────────────────────────────
 
-            const totalServers = currentData.total_servers;
-            const normalCount = currentData.normal_count;
-            const availabilityRate = totalServers > 0 
-                ? ((normalCount / totalServers) * 100).toFixed(2) 
-                : 100;
+function fmtTraffic(tib) {
+  if (tib >= 1)   return tib.toFixed(3) + ' TiB';
+  if (tib >= 0.001) return (tib * 1024).toFixed(2) + ' GiB';
+  return (tib * 1024 * 1024).toFixed(0) + ' MiB';
+}
 
-            document.getElementById('stats').innerHTML = `
-                <div class="stat-card">
-                    <h3>📊 总服务器</h3>
-                    <div class="value">${totalServers}</div>
-                </div>
-                <div class="stat-card availability">
-                    <h3>✅ 整体可用率</h3>
-                    <div class="value">${availabilityRate}%</div>
-                    <div class="subvalue">${normalCount} / ${totalServers} 在线</div>
-                </div>
-                <div class="stat-card warning">
-                    <h3>🔴 限速中</h3>
-                    <div class="value">${currentData.throttled_count}</div>
-                </div>
-                <div class="stat-card success">
-                    <h3>🟢 正常运行</h3>
-                    <div class="value">${normalCount}</div>
-                </div>
-            `;
+// ── Fetch ──────────────────────────────────────────────────────
 
-            const serversContainer = document.getElementById('servers');
-            
-            if (currentView === 'card') {
-                serversContainer.className = 'servers-grid';
-                serversContainer.innerHTML = renderCardView();
-            } else if (currentView === 'list') {
-                serversContainer.className = 'servers-list';
-                serversContainer.innerHTML = renderListView();
-            } else if (currentView === 'compact') {
-                serversContainer.className = 'servers-compact';
-                serversContainer.innerHTML = renderCompactView();
-            } else if (currentView === 'table') {
-                serversContainer.className = '';
-                serversContainer.innerHTML = renderTableView();
-            }
+async function fetchData() {
+  resetCountdown();
+  document.getElementById('liveDot').style.background = 'var(--yellow)';
+  document.getElementById('liveLabel').textContent = 'SYNC';
 
-            document.getElementById('lastUpdate').textContent = `📅 最后更新: ${currentData.last_update}`;
-        }
+  try {
+    const res = await fetch(API_URL);
+    const json = await res.json();
+    if (json.success) {
+      rawServers = json.data.servers || [];
+      renderAll(json.data);
+    }
+  } catch (e) {
+    document.getElementById('grid').innerHTML =
+      `<div class="state-box">⚠ 加载失败，稍后重试</div>`;
+  }
 
-        function renderCardView() {
-            return sortedServers.map(s => {
-                const isThrottled = s.trafficThrottled;
-                
-                return `
-                <div class="server-card ${isThrottled ? 'throttled' : ''}">
-                    <div class="server-header">
-                        <div class="server-title">
-                            <div class="name">${s.server_name}</div>
-                            <div class="ip">${s.ipv4IP}</div>
-                            <div class="account">📋 ${s.account_id}</div>
-                        </div>
-                        <span class="badge ${isThrottled ? 'throttled' : 'normal'}">
-                            ${isThrottled ? '🔴 限速中' : '🟢 正常'}
-                        </span>
-                    </div>
-                    
-                    <div class="throttle-status ${isThrottled ? '' : 'normal'}">
-                        <div class="throttle-stats">
-                            <div class="throttle-stat-item">
-                                <div class="throttle-stat-label">${isThrottled ? '当前已限速' : '累计限速时长'}</div>
-                                <div class="throttle-stat-value ${isThrottled ? 'large' : ''}">
-                                    ${isThrottled ? s.current_throttle_duration : s.total_throttled_time}
-                                </div>
-                            </div>
-                            <div class="throttle-stat-item">
-                                <div class="throttle-stat-label">限速次数</div>
-                                <div class="throttle-stat-value">${s.throttle_count} 次</div>
-                            </div>
-                            ${s.last_throttle_time ? `
-                            <div class="throttle-stat-item">
-                                <div class="throttle-stat-label">上次限速</div>
-                                <div class="throttle-stat-value" style="font-size: 12px;">${s.last_throttle_time}</div>
-                            </div>
-                            ` : ''}
-                            ${s.last_unthrottle_time ? `
-                            <div class="throttle-stat-item">
-                                <div class="throttle-stat-label">解除限速</div>
-                                <div class="throttle-stat-value" style="font-size: 12px;">${s.last_unthrottle_time}</div>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                    
-                    <div class="server-info">
-                        <div class="info-item">
-                            <div class="info-label">💾 总流量</div>
-                            <div class="info-value">${formatTraffic(s.traffic_tib)}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">⬆️ 上传</div>
-                            <div class="info-value">${formatTraffic(s.tx_tib)}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">⬇️ 下载</div>
-                            <div class="info-value">${formatTraffic(s.rx_tib)}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">🔄 状态</div>
-                            <div class="info-value">${s.status}</div>
-                        </div>
-                    </div>
-                </div>
-            `}).join('');
-        }
+  document.getElementById('liveDot').style.background = 'var(--green)';
+  document.getElementById('liveLabel').textContent = 'LIVE';
+}
 
-        function renderListView() {
-            return sortedServers.map(s => {
-                const isThrottled = s.trafficThrottled;
-                
-                return `
-                <div class="server-list-item ${isThrottled ? 'throttled' : ''}">
-                    <div class="list-server-info">
-                        <div class="list-server-name">${s.server_name}</div>
-                        <div class="list-server-ip">📍 ${s.ipv4IP}</div>
-                        <div class="list-server-account">📋 ${s.account_id}</div>
-                    </div>
-                    
-                    <div class="list-stats-grid">
-                        <div class="list-stat">
-                            <div class="list-stat-label">总流量</div>
-                            <div class="list-stat-value">${formatTraffic(s.traffic_tib)}</div>
-                        </div>
-                        <div class="list-stat">
-                            <div class="list-stat-label">限速次数</div>
-                            <div class="list-stat-value">${s.throttle_count} 次</div>
-                        </div>
-                        <div class="list-stat">
-                            <div class="list-stat-label">${isThrottled ? '当前限速' : '累计限速'}</div>
-                            <div class="list-stat-value">${isThrottled ? s.current_throttle_duration : s.total_throttled_time}</div>
-                        </div>
-                        <div class="list-stat">
-                            <div class="list-stat-label">状态</div>
-                            <div class="list-stat-value">${s.status}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="list-status-badge ${isThrottled ? 'throttled' : 'normal'}">
-                        ${isThrottled ? '🔴 限速中' : '🟢 正常'}
-                    </div>
-                </div>
-            `}).join('');
-        }
+// ── Render ─────────────────────────────────────────────────────
 
-        function renderCompactView() {
-            return sortedServers.map(s => {
-                const isThrottled = s.trafficThrottled;
-                
-                return `
-                <div class="server-compact-item ${isThrottled ? 'throttled' : ''}">
-                    <div class="compact-header">
-                        <div class="compact-title-wrapper">
-                            <div class="compact-title">${s.server_name}</div>
-                            <div class="compact-account">📋 ${s.account_id}</div>
-                        </div>
-                        <span class="compact-badge ${isThrottled ? 'throttled' : 'normal'}">
-                            ${isThrottled ? '限速' : '正常'}
-                        </span>
-                    </div>
-                    
-                    <div class="compact-stats">
-                        <div class="compact-stat">
-                            <span class="compact-stat-label">IP</span>
-                            <span class="compact-stat-value">${s.ipv4IP}</span>
-                        </div>
-                        <div class="compact-stat">
-                            <span class="compact-stat-label">总流量</span>
-                            <span class="compact-stat-value">${formatTraffic(s.traffic_tib)}</span>
-                        </div>
-                        <div class="compact-stat">
-                            <span class="compact-stat-label">限速次数</span>
-                            <span class="compact-stat-value">${s.throttle_count} 次</span>
-                        </div>
-                        <div class="compact-stat">
-                            <span class="compact-stat-label">${isThrottled ? '当前限速' : '累计限速'}</span>
-                            <span class="compact-stat-value">${isThrottled ? s.current_throttle_duration : s.total_throttled_time}</span>
-                        </div>
-                    </div>
-                </div>
-            `}).join('');
-        }
+function renderAll(data) {
+  // Summary
+  const total    = data.total_servers || 0;
+  const normal   = data.normal_count  || 0;
+  const throttled= data.throttled_count || 0;
+  const avail    = total > 0 ? ((normal / total) * 100).toFixed(1) : '100';
 
-        function renderTableView() {
-            const rows = sortedServers.map(s => {
-                const isThrottled = s.trafficThrottled;
-                
-                return `
-                <tr class="${isThrottled ? 'throttled' : ''}">
-                    <td>
-                        <strong>${s.server_name}</strong><br>
-                        <small style="color: #6b7280;">${s.ipv4IP}</small><br>
-                        <span class="table-account-badge">📋 ${s.account_id}</span>
-                    </td>
-                    <td><span class="table-status ${isThrottled ? 'throttled' : 'normal'}">${isThrottled ? '🔴 限速中' : '🟢 正常'}</span></td>
-                    <td>${formatTraffic(s.traffic_tib)}</td>
-                    <td>${formatTraffic(s.tx_tib)}</td>
-                    <td>${formatTraffic(s.rx_tib)}</td>
-                    <td>${s.throttle_count} 次</td>
-                    <td>${isThrottled ? s.current_throttle_duration : s.total_throttled_time}</td>
-                    <td>${s.last_throttle_time || '-'}</td>
-                    <td>${s.status}</td>
-                </tr>
-            `}).join('');
-            
-            return `
-                <div class="servers-table-container">
-                    <table class="servers-table">
-                        <thead>
-                            <tr>
-                                <th>服务器</th>
-                                <th>状态</th>
-                                <th>总流量</th>
-                                <th>上传</th>
-                                <th>下载</th>
-                                <th>限速次数</th>
-                                <th>限速时长</th>
-                                <th>上次限速</th>
-                                <th>运行状态</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
+  document.getElementById('s-total').textContent    = total;
+  document.getElementById('s-normal').textContent   = normal;
+  document.getElementById('s-throttled').textContent= throttled;
 
-        fetchData();
-        setInterval(fetchData, REFRESH_INTERVAL);
-    </script>
+  const availEl = document.getElementById('s-avail');
+  availEl.textContent = avail + '%';
+  availEl.className = 'summary-value ' + (parseFloat(avail) >= 90 ? 'green' : parseFloat(avail) >= 70 ? 'yellow' : 'red');
+
+  // Last update
+  document.getElementById('lastUpdate').textContent = '最后更新 ' + (data.last_update || '—');
+
+  // Grid
+  renderGrid();
+}
+
+function getSort() {
+  return document.getElementById('sortSelect').value;
+}
+
+function applySort() { renderGrid(); }
+
+function renderGrid() {
+  const sort = getSort();
+  let servers = [...rawServers];
+
+  if (sort === 'traffic')   servers.sort((a,b) => b.traffic_tib - a.traffic_tib);
+  if (sort === 'upload')    servers.sort((a,b) => b.tx_tib - a.tx_tib);
+  if (sort === 'download')  servers.sort((a,b) => b.rx_tib - a.rx_tib);
+  if (sort === 'throttle')  servers.sort((a,b) => b.throttle_count - a.throttle_count);
+  if (sort === 'status')    servers.sort((a,b) => (b.trafficThrottled ? 1 : 0) - (a.trafficThrottled ? 1 : 0));
+
+  if (!servers.length) {
+    document.getElementById('grid').innerHTML = `<div class="state-box">暂无数据</div>`;
+    return;
+  }
+
+  document.getElementById('grid').innerHTML = servers.map(renderCard).join('');
+}
+
+function renderCard(s) {
+  const throttled = s.trafficThrottled;
+
+  // Status dot
+  const stateUp  = (s.status || '').toLowerCase() === 'running';
+  const stateLabel = s.status || 'UNKNOWN';
+
+  // Throttle info
+  const countLine  = s.throttle_count > 0
+    ? `<span>${s.throttle_count} 次</span>`
+    : `<span class="tinfo-value dim">—</span>`;
+
+  const durationLabel = throttled ? '当前已限速' : '累计限速时长';
+  const durationValue = throttled
+    ? `<span class="tinfo-value alert">${s.current_throttle_duration || '—'}</span>`
+    : `<span class="tinfo-value">${s.total_throttled_time || '—'}</span>`;
+
+  const lastThrottle = s.last_throttle_time
+    ? `<div class="tinfo"><div class="tinfo-label">上次限速</div><div class="tinfo-value dim" style="font-size:10px">${s.last_throttle_time}</div></div>`
+    : '';
+
+  const lastUnthrottle = s.last_unthrottle_time
+    ? `<div class="tinfo"><div class="tinfo-label">解除限速</div><div class="tinfo-value dim" style="font-size:10px">${s.last_unthrottle_time}</div></div>`
+    : '';
+
+  return `
+<div class="card ${throttled ? 'throttled' : ''}">
+  <div class="card-head">
+    <div>
+      <div class="card-name">${s.server_name || '—'}</div>
+      <div class="card-meta">
+        <span class="card-ip">${s.ipv4IP || '—'}</span>
+        <span class="card-account">${s.account_id || ''}</span>
+      </div>
+    </div>
+    <span class="tag ${throttled ? 'throttled' : 'normal'}">${throttled ? '限速' : '正常'}</span>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat">
+      <div class="stat-label">总流量</div>
+      <div class="stat-value">${fmtTraffic(s.traffic_tib || 0)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">↑ 上传</div>
+      <div class="stat-value up">${fmtTraffic(s.tx_tib || 0)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">↓ 下载</div>
+      <div class="stat-value down">${fmtTraffic(s.rx_tib || 0)}</div>
+    </div>
+  </div>
+
+  <div class="card-throttle">
+    <div class="tinfo">
+      <div class="tinfo-label">限速次数</div>
+      <div class="tinfo-value ${s.throttle_count > 0 ? '' : 'dim'}">${s.throttle_count > 0 ? s.throttle_count + ' 次' : '—'}</div>
+    </div>
+    <div class="tinfo">
+      <div class="tinfo-label">${durationLabel}</div>
+      ${durationValue}
+    </div>
+    ${lastThrottle}
+    ${lastUnthrottle}
+  </div>
+
+  <div class="card-foot">
+    <div class="foot-status">
+      <div class="dot-status ${stateUp ? 'on' : 'off'}"></div>
+      <span>${stateLabel}</span>
+    </div>
+  </div>
+</div>`;
+}
+
+// ── Countdown ──────────────────────────────────────────────────
+
+function resetCountdown() {
+  clearInterval(timer);
+  countdown = INTERVAL / 1000;
+  tick();
+  timer = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      fetchData();
+    } else {
+      tick();
+    }
+  }, 1000);
+}
+
+function tick() {
+  const pct = (countdown / (INTERVAL / 1000)) * 100;
+  document.getElementById('countdownFill').style.width = pct + '%';
+  document.getElementById('countdownLabel').textContent = countdown + 's';
+}
+
+// ── Init ───────────────────────────────────────────────────────
+fetchData();
+</script>
 </body>
 </html>
