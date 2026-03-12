@@ -1,0 +1,61 @@
+# ============================================================
+# Traffic Monitor 配置文件
+# 支持热重载：修改后无需重启，下次推送周期自动生效
+# ============================================================
+
+# ── 全局设置 ─────────────────────────────────────────────────
+global:
+  tg_bot_token: ""
+  target_chat_ids: [8104838294]
+  cookie_dir: "./cookies"
+  push_interval: 1800                # 推送间隔（秒），30分钟
+  traffic_threshold_tb: 20.0         # 旧全局告警阈值（仅通知，不触发操作）
+  qb_announce_wait_seconds: 10       # reannounce 后等待秒数
+  qb_timeout: 30                     # qBittorrent 操作超时（秒）
+
+# ── Vertex 配置 ───────────────────────────────────────────────
+vertex:
+  login_url: ""  #写域名或者ip:port 无需路径
+  username: "admin"
+  password: ""   # 明文，脚本内自动 MD5
+
+# ── 账号配置列表 ──────────────────────────────────────────────
+# 每个账号字段说明：
+#   alias              账号别名（唯一标识，用于日志/通知）
+#   cookie_file        Cookie 文件名（位于 cookie_dir 目录下）
+#   traffic_threshold_tb  出站（LSW）或双向（AVM）流量触发阈值，单位 TB
+#   vertex_ips         用于在 Vertex 下载器列表中匹配对应下载器的 IP 列表
+#   qb_override        手动指定 qB 代理 URL，留空则自动从 Vertex 列表中发现
+#   products           该账号下需监控的产品列表
+#     - id             产品服务 ID   点击服务器进去网址后数字
+#       type           机器类型：lsw（Leaseweb 分销）或 avm（托管机房）
+accounts:
+  - alias: "hostdzire托管荷兰"
+    cookie_file: ""
+    traffic_threshold_tb: 47.0
+    vertex_ips:
+      - "199.47.21.23"
+    qb_override: ""
+    products:
+      - id: 121993
+        type: "avm"
+
+  - alias: "leaseweb荷兰"
+    cookie_file: ""
+    traffic_threshold_tb: 23.0
+    vertex_ips:
+      - "89.149.233.75"
+    qb_override: ""
+    products:
+      - id: 120448
+        type: "lsw"
+
+  - alias: "leaseweb旧金山"
+    cookie_file: ""
+    traffic_threshold_tb: 23.0
+    vertex_ips:
+      - "23.82.91.22"
+    qb_override: ""
+    products:
+      - id: 112651
+        type: "lsw"

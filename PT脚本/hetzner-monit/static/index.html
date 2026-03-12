@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hetzner Cloud Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #080c18;
+  --bg2:     #0c1220;
+  --bg3:     #111828;
+  --bg4:     #161f30;
+  --card:    #0f1726;
+  --card2:   #141e30;
+  --border:  rgba(82,110,255,0.12);
+  --border2: rgba(82,110,255,0.28);
+  --border3: rgba(82,110,255,0.45);
+  --accent:  #526eff;
+  --accent2: #7b93ff;
+  --accent3: #a5b8ff;
+  --green:   #0fd47a;
+  --red:     #f24b60;
+  --yellow:  #f5c842;
+  --orange:  #f5893f;
+  --purple:  #a855f7;
+  --cyan:    #22d3ee;
+  --text:    #dde4f5;
+  --text2:   #7d8caa;
+  --text3:   #3e4d68;
+  --mono:    'JetBrains Mono', monospace;
+  --sans:    'Outfit', sans-serif;
+  --r:       10px;
+  --r2:      7px;
+  --shadow:  0 8px 32px rgba(0,0,0,0.4);
+  --glow:    0 0 24px rgba(82,110,255,0.15);
+  --glow2:   0 0 48px rgba(82,110,255,0.22);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  background-image:
+    linear-gradient(rgba(82,110,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(82,110,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ════ LOGIN ════════════════════════════════════════════════════ */
+#login-screen {
+  position: fixed; inset: 0; z-index: 999;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  background-image: radial-gradient(ellipse 70% 50% at 50% -10%, rgba(82,110,255,0.18) 0%, transparent 70%);
+}
+.login-box {
+  width: 380px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 44px 40px;
+  box-shadow: var(--glow2), 0 40px 80px rgba(0,0,0,0.6);
+  animation: fadeUp .5s ease;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+.lbox-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+.lbox-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 12px; display: flex; align-items: center;
+  justify-content: center; font-size: 20px;
+  box-shadow: 0 6px 20px rgba(82,110,255,0.45); flex-shrink: 0;
+}
+.lbox-title { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+.lbox-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+.fgroup { margin-bottom: 18px; }
+.flabel { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 1px; }
+.finput {
+  width: 100%; padding: 11px 14px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r2); color: var(--text);
+  font-family: var(--mono); font-size: 14px;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.finput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(82,110,255,.15); }
+
+.btn-login {
+  width: 100%; padding: 12px;
+  background: linear-gradient(135deg, var(--accent), #6b7fff);
+  border: none; border-radius: var(--r2);
+  color: #fff; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all .2s; font-family: var(--sans);
+}
+.btn-login:hover { box-shadow: 0 6px 20px rgba(82,110,255,.45); transform: translateY(-1px); }
+.login-err { color: var(--red); font-size: 12px; text-align: center; margin-top: 10px; display: none; }
+
+/* ════ LAYOUT ════════════════════════════════════════════════════ */
+#app { display: none; min-height: 100vh; }
+#app.show { display: flex; }
+
+.sidebar {
+  position: fixed; inset: 0 auto 0 0; width: 216px;
+  background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 50;
+}
+.sb-head { padding: 20px 16px 18px; border-bottom: 1px solid var(--border); }
+.sb-logo { display: flex; align-items: center; gap: 10px; }
+.sb-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; font-size: 13px; flex-shrink: 0;
+}
+.sb-name { font-size: 13px; font-weight: 700; letter-spacing: -.2px; }
+.sb-ver { font-size: 10px; color: var(--text3); }
+
+.sb-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+.sb-section { margin-bottom: 18px; }
+.sb-sec-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; padding: 0 8px; margin-bottom: 5px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: var(--r2);
+  cursor: pointer; transition: all .15s;
+  font-size: 13px; color: var(--text2); user-select: none;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: rgba(82,110,255,.15); color: var(--accent2); border: 1px solid rgba(82,110,255,.2); }
+.nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+
+.sb-foot { padding: 12px 10px; border-top: 1px solid var(--border); }
+.mon-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; background: var(--bg3); border-radius: var(--r2); margin-bottom: 8px;
+}
+.mon-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); flex-shrink: 0; transition: all .3s; }
+.mon-dot.on { background: var(--green); box-shadow: 0 0 8px rgba(15,212,122,.7); animation: blink 2s infinite; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+.mon-text { font-size: 12px; color: var(--text2); }
+
+.main { margin-left: 216px; min-height: 100vh; padding: 28px 32px; }
+
+/* ════ PAGES ═════════════════════════════════════════════════════ */
+.page { display: none; animation: fadeUp .2s ease; }
+.page.active { display: block; }
+
+/* ════ HEADER ════════════════════════════════════════════════════ */
+.ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+.ph-title h2 { font-size: 22px; font-weight: 700; letter-spacing: -.5px; }
+.ph-title p { font-size: 12px; color: var(--text2); margin-top: 3px; }
+.ph-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ════ BUTTONS ═══════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--r2);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+  border: 1px solid var(--border); font-family: var(--sans);
+  white-space: nowrap; background: transparent; color: var(--text2);
+}
+.btn:hover { background: var(--bg3); color: var(--text); }
+.btn-a { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-a:hover { background: #3d57e8; box-shadow: 0 4px 16px rgba(82,110,255,.4); }
+.btn-d { background: rgba(242,75,96,.1); border-color: rgba(242,75,96,.3); color: var(--red); }
+.btn-d:hover { background: rgba(242,75,96,.2); }
+.btn-g { background: rgba(15,212,122,.1); border-color: rgba(15,212,122,.3); color: var(--green); }
+.btn-g:hover { background: rgba(15,212,122,.18); }
+.btn-y { background: rgba(245,200,66,.1); border-color: rgba(245,200,66,.3); color: var(--yellow); }
+.btn-y:hover { background: rgba(245,200,66,.18); }
+.btn-p { background: rgba(168,85,247,.1); border-color: rgba(168,85,247,.3); color: var(--purple); }
+.btn-p:hover { background: rgba(168,85,247,.18); }
+.btn-o { background: rgba(245,137,63,.1); border-color: rgba(245,137,63,.3); color: var(--orange); }
+.btn-o:hover { background: rgba(245,137,63,.18); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-xs { padding: 4px 9px; font-size: 11px; }
+
+/* ════ CARDS ═════════════════════════════════════════════════════ */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; transition: border-color .2s; }
+.card:hover { border-color: var(--border2); }
+.card-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.card-title { font-size: 13px; font-weight: 600; }
+
+/* ════ STATS ═════════════════════════════════════════════════════ */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 14px; margin-bottom: 24px; }
+.scard { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; position: relative; overflow: hidden; }
+.scard::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.scard.c-blue::after  { background: linear-gradient(90deg, var(--accent), transparent); }
+.scard.c-green::after { background: linear-gradient(90deg, var(--green), transparent); }
+.scard.c-red::after   { background: linear-gradient(90deg, var(--red), transparent); }
+.scard.c-yellow::after{ background: linear-gradient(90deg, var(--yellow), transparent); }
+.scard.c-purple::after{ background: linear-gradient(90deg, var(--purple), transparent); }
+.scard.c-orange::after{ background: linear-gradient(90deg, var(--orange), transparent); }
+.sl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: .9px; margin-bottom: 8px; }
+.sv { font-size: 26px; font-weight: 700; font-family: var(--mono); letter-spacing: -1px; }
+.sv small { font-size: 13px; color: var(--text2); font-weight: 400; font-family: var(--sans); }
+.sf { font-size: 11px; color: var(--text2); margin-top: 6px; }
+
+/* ════ SERVER CARDS ══════════════════════════════════════════════ */
+.servers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px,1fr)); gap: 14px; }
+.sv-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px;
+  transition: all .2s; position: relative; overflow: hidden;
+}
+.sv-card:hover { border-color: var(--border2); box-shadow: var(--glow); transform: translateY(-1px); }
+.sv-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+.sv-name { font-size: 14px; font-weight: 600; }
+.sv-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+
+.badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.b-run  { background: rgba(15,212,122,.12); color: var(--green);  border: 1px solid rgba(15,212,122,.25); }
+.b-off  { background: rgba(242,75,96,.1);   color: var(--red);    border: 1px solid rgba(242,75,96,.2); }
+.b-init { background: rgba(245,200,66,.1);  color: var(--yellow); border: 1px solid rgba(245,200,66,.2); }
+
+.sv-ip { font-family: var(--mono); font-size: 13px; color: var(--accent2); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+.sv-ip button { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 11px; padding: 2px 4px; border-radius: 4px; transition: color .15s; }
+.sv-ip button:hover { color: var(--accent2); }
+
+.tb-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.tb-lbl { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .4px; }
+.tb-pct { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.tb-track { height: 5px; background: var(--bg3); border-radius: 99px; overflow: hidden; }
+.tb-fill { height: 100%; border-radius: 99px; transition: width .6s ease; }
+.tb-fill.t0 { background: linear-gradient(90deg, var(--green), #30e88a); }
+.tb-fill.t1 { background: linear-gradient(90deg, var(--yellow), #f7d87e); }
+.tb-fill.t2 { background: linear-gradient(90deg, var(--orange), #f7a55a); }
+.tb-fill.t3 { background: linear-gradient(90deg, var(--red), #f76878); }
+.tb-detail { font-size: 11px; color: var(--text3); margin-top: 5px; font-family: var(--mono); }
+
+.sv-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border); margin-top: 12px; }
+.sv-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.tag { font-size: 10px; padding: 2px 7px; background: var(--bg3); border-radius: 4px; color: var(--text2); font-family: var(--mono); }
+.tag.snap { color: var(--accent2); background: rgba(82,110,255,.1); }
+.sv-acts { display: flex; gap: 5px; }
+.type-mini { font-size: 10px; font-family: var(--mono); color: var(--text3); }
+
+/* ════ SNAPSHOTS ═════════════════════════════════════════════════ */
+.snap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 12px; }
+.snap-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; display: flex; flex-direction: column; gap: 9px; }
+.snap-name { font-size: 13px; font-weight: 600; }
+.snap-id-badge { font-family: var(--mono); font-size: 11px; color: var(--accent2); background: rgba(82,110,255,.1); padding: 2px 8px; border-radius: 4px; display: inline-block; width: fit-content; }
+.snap-meta { font-size: 11px; color: var(--text2); display: flex; gap: 10px; flex-wrap: wrap; }
+.snap-acts { display: flex; gap: 6px; }
+
+/* ════ FORMS ═════════════════════════════════════════════════════ */
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px,1fr)); gap: 18px; }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.frow3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.fg { margin-bottom: 14px; }
+.fl { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .8px; }
+.fh { font-size: 11px; color: var(--text3); margin-top: 4px; line-height: 1.4; }
+.inp {
+  width: 100%; padding: 9px 13px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r2); color: var(--text);
+  font-family: var(--mono); font-size: 13px;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(82,110,255,.12); }
+select.inp { cursor: pointer; }
+textarea.inp { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+/* Toggle */
+.tog-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.tog-row:last-of-type { border-bottom: none; }
+.tog-lbl { font-size: 13px; font-weight: 500; }
+.tog-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.tog { position: relative; width: 40px; height: 22px; background: var(--bg3); border-radius: 99px; border: 1px solid var(--border); cursor: pointer; transition: all .2s; flex-shrink: 0; }
+.tog.on { background: rgba(82,110,255,.28); border-color: var(--accent); }
+.tog::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--text3); transition: all .2s; }
+.tog.on::after { left: calc(100% - 18px); background: var(--accent2); box-shadow: 0 0 8px rgba(82,110,255,.6); }
+
+/* Chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; background: var(--bg3); border: 1px solid var(--border); font-family: var(--mono); font-size: 11px; color: var(--text2); cursor: default; }
+.chip.sel { background: rgba(82,110,255,.15); border-color: var(--border3); color: var(--accent2); }
+.chip-x { font-size: 13px; color: var(--text3); cursor: pointer; line-height: 1; }
+.chip-x:hover { color: var(--red); }
+
+/* ════ SCHEDULED TASKS ═══════════════════════════════════════════ */
+.sched-timeline {
+  display: flex; gap: 0; margin: 18px 0;
+  background: var(--bg3); border-radius: var(--r);
+  padding: 16px 20px; align-items: center;
+  border: 1px solid var(--border);
+}
+.sched-tl-item { flex: 1; text-align: center; position: relative; }
+.sched-tl-item:not(:last-child)::after {
+  content: '→'; position: absolute; right: -10px; top: 50%; transform: translateY(-50%);
+  color: var(--text3); font-size: 16px;
+}
+.sched-tl-time { font-family: var(--mono); font-size: 18px; font-weight: 700; }
+.sched-tl-label { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.sched-tl-badge { font-size: 10px; padding: 2px 7px; border-radius: 4px; margin-top: 5px; display: inline-block; }
+
+.task-card {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px;
+  position: relative; overflow: hidden;
+}
+.task-card.active-task { border-color: rgba(82,110,255,.3); }
+.task-card::before {
+  content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px;
+  background: var(--text3); border-radius: 3px 0 0 3px;
+}
+.task-card.del-task::before { background: var(--red); }
+.task-card.cre-task::before { background: var(--green); }
+.task-card-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.task-icon { font-size: 20px; }
+.task-title { font-size: 14px; font-weight: 600; }
+.task-subtitle { font-size: 11px; color: var(--text2); }
+.task-status-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.task-last { font-size: 11px; color: var(--text2); }
+.task-next { font-size: 11px; color: var(--cyan); font-family: var(--mono); }
+
+/* ════ VERTEX PAGE ═══════════════════════════════════════════════ */
+.dl-list { display: flex; flex-direction: column; gap: 10px; }
+.dl-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 18px; display: flex; align-items: center; gap: 16px; transition: border-color .2s; }
+.dl-card.is-hetzner { border-color: rgba(82,110,255,.25); }
+.dl-card:hover { border-color: var(--border2); }
+.dl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+.dl-dot.active { background: var(--green); box-shadow: 0 0 6px rgba(15,212,122,.5); }
+.dl-info { flex: 1; min-width: 0; }
+.dl-alias { font-size: 13px; font-weight: 600; }
+.dl-url { font-size: 11px; color: var(--text2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.dl-ip { font-family: var(--mono); font-size: 13px; color: var(--cyan); background: rgba(34,211,238,.08); padding: 3px 10px; border-radius: 6px; flex-shrink: 0; }
+.dl-badge-h { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(82,110,255,.12); color: var(--accent2); border: 1px solid rgba(82,110,255,.2); flex-shrink: 0; }
+
+/* ════ TYPE CATALOG ══════════════════════════════════════════════ */
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 10px; }
+.tc-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; transition: all .15s; cursor: pointer; }
+.tc-card:hover { border-color: var(--border2); background: var(--card2); }
+.tc-card.sel { border-color: var(--accent); background: rgba(82,110,255,.08); }
+.tc-name { font-family: var(--mono); font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.tc-specs { display: flex; flex-wrap: wrap; gap: 5px; }
+.tc-spec { font-size: 10px; padding: 2px 7px; background: var(--bg3); border-radius: 4px; color: var(--text2); }
+.tc-traffic { font-size: 10px; color: var(--cyan); margin-top: 5px; }
+.tc-series-badge { font-size: 9px; padding: 1px 6px; border-radius: 3px; float: right; margin-left: 6px; background: rgba(82,110,255,.1); color: var(--accent2); }
+
+/* ════ LOGS ══════════════════════════════════════════════════════ */
+.log-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); font-family: var(--mono); font-size: 12px; height: 480px; overflow-y: auto; padding: 14px; }
+.log-row { display: flex; gap: 10px; padding: 3px 0; line-height: 1.5; }
+.log-t { color: var(--text3); flex-shrink: 0; min-width: 55px; }
+.log-m.info { color: var(--text2); }
+.log-m.warn { color: var(--yellow); }
+.log-m.error { color: var(--red); }
+
+/* ════ MODAL ═════════════════════════════════════════════════════ */
+.modal-bg { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--card); border: 1px solid var(--border2); border-radius: 16px; padding: 28px; width: 500px; max-width: 92vw; max-height: 82vh; overflow-y: auto; box-shadow: var(--glow2), 0 40px 80px rgba(0,0,0,.6); animation: fadeUp .2s ease; }
+.modal-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-x { background: none; border: none; color: var(--text2); font-size: 20px; cursor: pointer; padding: 4px; border-radius: 5px; }
+.modal-x:hover { color: var(--text); }
+
+/* ════ TOAST ═════════════════════════════════════════════════════ */
+.toast-wrap { position: fixed; bottom: 22px; right: 22px; z-index: 999; display: flex; flex-direction: column; gap: 7px; }
+.toast { background: var(--card2); border: 1px solid var(--border2); border-radius: 10px; padding: 11px 16px; font-size: 13px; min-width: 220px; box-shadow: 0 8px 28px rgba(0,0,0,.4); animation: fadeUp .25s ease; display: flex; align-items: center; gap: 9px; }
+.toast.ok  { border-left: 3px solid var(--green); }
+.toast.err { border-left: 3px solid var(--red); }
+.toast.wrn { border-left: 3px solid var(--yellow); }
+
+/* ════ MISC ══════════════════════════════════════════════════════ */
+.loading { display: flex; align-items: center; gap: 12px; justify-content: center; padding: 44px; color: var(--text2); font-size: 14px; }
+.spin { width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: rotate .7s linear infinite; display: inline-block; }
+@keyframes rotate { to { transform: rotate(360deg); } }
+
+.empty { text-align: center; padding: 56px 20px; }
+.empty-icon { font-size: 36px; margin-bottom: 14px; }
+.empty h3 { font-size: 15px; font-weight: 600; margin-bottom: 7px; }
+.empty p { font-size: 13px; color: var(--text2); }
+
+.section-sep { height: 1px; background: var(--border); margin: 20px 0; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+@media (max-width: 860px) {
+  .sidebar { width: 56px; }
+  .sb-name, .sb-ver, .sb-sec-label, .nav-item span, .mon-text { display: none; }
+  .main { margin-left: 56px; padding: 18px 16px; }
+  .servers-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="lbox-logo">
+      <div class="lbox-icon">☁️</div>
+      <div>
+        <div class="lbox-title">Hetzner Manager</div>
+        <div class="lbox-sub">Cloud Infrastructure Panel</div>
+      </div>
+    </div>
+    <div class="fgroup">
+      <label class="flabel">管理员密码</label>
+      <input type="password" class="finput" id="lpwd" placeholder="输入访问密码">
+    </div>
+    <button class="btn-login" onclick="doLogin()">登 录</button>
+    <div class="login-err" id="lerr">密码错误，请重试</div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-hd">
+      <div class="modal-title" id="modal-title"></div>
+      <button class="modal-x" onclick="closeModal()">×</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav class="sidebar">
+    <div class="sb-head">
+      <div class="sb-logo">
+        <div class="sb-icon">☁️</div>
+        <div>
+          <div class="sb-name">Hetzner Mgr</div>
+          <div class="sb-ver">v2.1</div>
+        </div>
+      </div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-section">
+        <div class="sb-sec-label">监控</div>
+        <div class="nav-item active" data-p="dashboard" onclick="nav('dashboard')">
+          <span class="nav-icon">📊</span><span>仪表盘</span>
+        </div>
+        <div class="nav-item" data-p="servers" onclick="nav('servers')">
+          <span class="nav-icon">🖥</span><span>服务器</span>
+        </div>
+        <div class="nav-item" data-p="snapshots" onclick="nav('snapshots')">
+          <span class="nav-icon">💾</span><span>快照镜像</span>
+        </div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-sec-label">工具</div>
+        <div class="nav-item" data-p="vertex" onclick="nav('vertex')">
+          <span class="nav-icon">🔌</span><span>Vertex 下载器</span>
+        </div>
+        <div class="nav-item" data-p="catalog" onclick="nav('catalog')">
+          <span class="nav-icon">📋</span><span>型号参考</span>
+        </div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-sec-label">系统</div>
+        <div class="nav-item" data-p="schedule" onclick="nav('schedule')">
+          <span class="nav-icon">⏰</span><span>定时任务</span>
+        </div>
+        <div class="nav-item" data-p="monitor-cfg" onclick="nav('monitor-cfg')">
+          <span class="nav-icon">🔧</span><span>监控配置</span>
+        </div>
+        <div class="nav-item" data-p="logs" onclick="nav('logs')">
+          <span class="nav-icon">📋</span><span>运行日志</span>
+        </div>
+        <div class="nav-item" data-p="settings" onclick="nav('settings')">
+          <span class="nav-icon">⚙️</span><span>系统设置</span>
+        </div>
+      </div>
+    </div>
+    <div class="sb-foot">
+      <div class="mon-pill">
+        <div class="mon-dot" id="mon-dot"></div>
+        <span class="mon-text" id="mon-label">监控未启动</span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" style="flex:1;justify-content:center;" onclick="doLogout()">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="ph">
+        <div class="ph-title"><h2>仪表盘</h2><p>服务器流量实时监控</p></div>
+        <div class="ph-actions">
+          <span id="last-check-txt" style="font-size:11px;color:var(--text2);"></span>
+          <button class="btn" onclick="refreshServers(true)">🔄 刷新</button>
+          <button class="btn btn-sm" onclick="checkNow()">⚡ 立即检查</button>
+          <button class="btn btn-a" id="mon-btn" onclick="toggleMon()">▶ 启动监控</button>
+        </div>
+      </div>
+      <div class="stats-row" id="stat-row">
+        <div class="scard c-blue"><div class="sl">总服务器</div><div class="sv" id="s-total">—</div><div class="sf">当前实例数</div></div>
+        <div class="scard c-green"><div class="sl">运行中</div><div class="sv" id="s-run">—</div><div class="sf">状态正常</div></div>
+        <div class="scard c-red"><div class="sl">高流量预警</div><div class="sv" id="s-high">—</div><div class="sf" id="s-thr-lbl">超过阈值</div></div>
+        <div class="scard c-yellow"><div class="sl">总出站流量</div><div class="sv" id="s-traffic">—<small> GB</small></div><div class="sf">全部服务器合计</div></div>
+        <div class="scard c-purple"><div class="sl">下次检查</div><div class="sv" id="s-next" style="font-size:16px;">—</div><div class="sf">自动监控</div></div>
+        <div class="scard c-orange"><div class="sl">定时调度器</div><div class="sv" id="s-sched" style="font-size:16px;">—</div><div class="sf" id="s-sched-sub">点击定时任务配置</div></div>
+      </div>
+      <div id="dash-servers"><div class="loading"><div class="spin"></div> 加载中...</div></div>
+    </div>
+
+    <!-- ── SERVERS ── -->
+    <div class="page" id="page-servers">
+      <div class="ph">
+        <div class="ph-title"><h2>服务器管理</h2><p>创建、删除、重建服务器</p></div>
+        <div class="ph-actions">
+          <button class="btn" onclick="refreshServers(true)">🔄 刷新</button>
+          <button class="btn btn-a" onclick="openCreateModal()">＋ 创建服务器</button>
+        </div>
+      </div>
+      <div id="sv-list"><div class="loading"><div class="spin"></div></div></div>
+    </div>
+
+    <!-- ── SNAPSHOTS ── -->
+    <div class="page" id="page-snapshots">
+      <div class="ph">
+        <div class="ph-title"><h2>快照 & 镜像</h2><p>可用于创建服务器的镜像</p></div>
+        <div class="ph-actions">
+          <select class="inp" id="img-type" onchange="loadImages()" style="width:120px;padding:7px 11px;">
+            <option value="snapshot">快照</option>
+            <option value="system">系统镜像</option>
+            <option value="backup">备份</option>
+          </select>
+          <button class="btn" onclick="loadImages()">🔄 刷新</button>
+        </div>
+      </div>
+      <div id="snap-list"><div class="loading"><div class="spin"></div></div></div>
+    </div>
+
+    <!-- ── VERTEX ── -->
+    <div class="page" id="page-vertex">
+      <div class="ph">
+        <div class="ph-title"><h2>Vertex 下载器</h2><p>管理下载器 IP 与 Hetzner 服务器同步</p></div>
+        <div class="ph-actions">
+          <button class="btn" onclick="loadVertex()">🔄 刷新列表</button>
+          <button class="btn btn-y" onclick="vertexSyncNow()">⚡ 立即同步IP</button>
+          <button class="btn btn-p" onclick="vertexTest()">🔗 测试连接</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-hd"><div class="card-title">⚙️ 连接配置</div>
+          <button class="btn btn-sm btn-a" onclick="saveVertexCfg()">保存配置</button>
+        </div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">入口地址 (Base URL)</label>
+            <input class="inp" id="vcfg-url" placeholder="http://23.82.99.203:3077">
+          </div>
+          <div class="fg">
+            <label class="fl">匹配关键词</label>
+            <input class="inp" id="vcfg-kw" placeholder="Hetzner">
+            <div class="fh">只同步 alias 包含该关键词的下载器</div>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">Cookie 认证</label>
+          <textarea class="inp" id="vcfg-cookies" rows="2" placeholder="connect.sid=s%3A..."></textarea>
+          <div class="fh">留空则使用已保存的 Cookie，不会覆盖</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;" id="vertex-conn-status"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;" id="vertex-sync-card">
+        <div class="card-hd">
+          <div class="card-title">🔄 自动同步</div>
+          <div class="tog" id="tog-vertex-sync" onclick="toggleField('vertex_sync_enabled','tog-vertex-sync')"></div>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">
+          开启后：创建/重建/定时创建服务器时自动将新 IP 同步给 Hetzner 下载器
+        </p>
+        <div id="vertex-last-sync" style="font-size:12px;color:var(--text2);"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">📡 下载器列表</div>
+          <span style="font-size:11px;color:var(--text2);" id="dl-count-txt"></span>
+        </div>
+        <div id="dl-list"><div class="loading"><div class="spin"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ── CATALOG ── -->
+    <div class="page" id="page-catalog">
+      <div class="ph">
+        <div class="ph-title"><h2>服务器型号参考</h2><p>点击型号可直接添加到优先级列表</p></div>
+        <div class="ph-actions">
+          <select class="inp" id="cat-filter" onchange="renderCatalog()" style="width:110px;padding:7px 11px;">
+            <option value="">全部系列</option>
+            <option value="CX">CX 系列</option>
+            <option value="CPX">CPX 系列</option>
+            <option value="CAX">CAX 系列</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);font-size:12px;color:var(--text2);">
+        💡 点击型号卡片可添加到监控配置的重建优先级列表。<br>
+        当前优先级: <span id="cat-current-types" style="color:var(--accent2);font-family:var(--mono);"></span>
+      </div>
+      <div class="catalog-grid" id="catalog-grid"></div>
+    </div>
+
+    <!-- ── SCHEDULE（定时任务）── -->
+    <div class="page" id="page-schedule">
+      <div class="ph">
+        <div class="ph-title"><h2>定时任务</h2><p>每天定时删除全部机器 / 定时批量创建机器</p></div>
+        <div class="ph-actions">
+          <button class="btn" id="sched-toggle-btn" onclick="toggleScheduler()">▶ 启动调度器</button>
+          <button class="btn btn-a" onclick="saveSchedule()">✓ 保存配置</button>
+        </div>
+      </div>
+
+      <!-- 总开关 + 时区 -->
+      <div style="background:rgba(82,110,255,.06);border:1px solid rgba(82,110,255,.2);border-radius:var(--r);padding:16px 20px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div>
+            <div style="font-size:13px;font-weight:600;">定时任务总开关</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px;">开启后调度器每 30 秒检查一次，到达设定时刻自动执行</div>
+          </div>
+          <div class="tog" id="tog-sched-master" onclick="toggleScheduleMaster()"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label class="fl" style="margin:0;white-space:nowrap;">执行时区</label>
+          <select class="inp" id="cfg-tz" style="max-width:260px;" onchange="updateTimeline()">
+            <option value="Asia/Shanghai">Asia/Shanghai（北京 / 中国标准时间 UTC+8）</option>
+            <option value="Asia/Hong_Kong">Asia/Hong_Kong（香港 UTC+8）</option>
+            <option value="Asia/Tokyo">Asia/Tokyo（日本 UTC+9）</option>
+            <option value="Asia/Seoul">Asia/Seoul（韩国 UTC+9）</option>
+            <option value="Asia/Singapore">Asia/Singapore（新加坡 UTC+8）</option>
+            <option value="Europe/Berlin">Europe/Berlin（德国 UTC+1/2）</option>
+            <option value="Europe/London">Europe/London（英国 UTC+0/1）</option>
+            <option value="America/New_York">America/New_York（美东 UTC-5/-4）</option>
+            <option value="America/Los_Angeles">America/Los_Angeles（美西 UTC-8/-7）</option>
+            <option value="UTC">UTC（协调世界时）</option>
+          </select>
+          <div style="font-size:11px;color:var(--text3);">所有时间均以此时区为准</div>
+        </div>
+        <!-- 服务器当前时间显示 -->
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--r2);display:flex;gap:20px;flex-wrap:wrap;">
+          <div style="font-size:11px;color:var(--text2);">🕐 服务器本地时间：<span id="srv-localtime" style="font-family:var(--mono);color:var(--text);">—</span></div>
+          <div style="font-size:11px;color:var(--text2);">🌏 配置时区当前时间：<span id="srv-tztime" style="font-family:var(--mono);color:var(--cyan);">（保存后由后端日志确认）</span></div>
+        </div>
+      </div>
+
+      <!-- 时间轴预览 -->
+      <div class="sched-timeline" style="margin-bottom:20px;">
+        <div class="sched-tl-item">
+          <div class="sched-tl-time" id="tl-delete-time" style="font-size:28px;font-weight:800;">—:—</div>
+          <div class="sched-tl-label" style="margin-top:4px;">🗑️ 定时删除全部机器</div>
+          <div class="sched-tl-badge" style="background:rgba(242,75,96,.1);color:var(--red);margin-top:6px;" id="tl-delete-status">未启用</div>
+        </div>
+        <div class="sched-tl-item" style="flex:0.4;">
+          <div style="font-size:22px;color:var(--text3);text-align:center;">→</div>
+          <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:4px;" id="tl-gap-text">间隔</div>
+        </div>
+        <div class="sched-tl-item">
+          <div class="sched-tl-time" id="tl-create-time" style="font-size:28px;font-weight:800;">—:—</div>
+          <div class="sched-tl-label" style="margin-top:4px;">🚀 定时批量创建机器</div>
+          <div class="sched-tl-badge" style="background:rgba(15,212,122,.1);color:var(--green);margin-top:6px;" id="tl-create-status">未启用</div>
+        </div>
+      </div>
+
+      <!-- 两栏卡片 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+        <!-- 定时删除 -->
+        <div class="task-card del-task">
+          <div class="task-card-hd">
+            <span class="task-icon">🗑️</span>
+            <div>
+              <div class="task-title">定时删除所有服务器</div>
+              <div class="task-subtitle">每天到达指定时刻后删除账户下全部服务器</div>
+            </div>
+          </div>
+
+          <div class="tog-row" style="margin-bottom:12px;">
+            <div><div class="tog-lbl">启用定时删除</div></div>
+            <div class="tog" id="tog-del" onclick="toggleSchedField('schedule_delete_enabled','tog-del', updateTimeline)"></div>
+          </div>
+
+          <div style="background:var(--bg3);border-radius:var(--r2);padding:14px;margin-bottom:14px;">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px;">每天执行时刻</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input class="inp" id="cfg-del-h" type="number" min="0" max="23" placeholder="23"
+                     style="width:72px;text-align:center;font-size:20px;font-weight:700;padding:8px;"
+                     oninput="updateTimeline()">
+              <span style="font-size:24px;color:var(--text2);font-weight:700;">:</span>
+              <input class="inp" id="cfg-del-m" type="number" min="0" max="59" placeholder="00"
+                     style="width:72px;text-align:center;font-size:20px;font-weight:700;padding:8px;"
+                     oninput="updateTimeline()">
+              <span style="font-size:13px;color:var(--text2);margin-left:4px;" id="del-tz-label">（时区）</span>
+            </div>
+            <div id="del-time-preview" style="font-size:11px;color:var(--text3);margin-top:8px;"></div>
+          </div>
+
+          <div style="font-size:11px;color:var(--red);background:rgba(242,75,96,.06);border:1px solid rgba(242,75,96,.15);border-radius:6px;padding:8px 12px;margin-bottom:12px;">
+            ⚠️ 危险操作：将删除账户下所有服务器，请确认时间正确
+          </div>
+
+          <div class="task-status-row">
+            <div class="task-last" id="del-last-run">上次执行: —</div>
+            <button class="btn btn-xs btn-d" onclick="triggerDeleteNow()">立即执行一次</button>
+          </div>
+        </div>
+
+        <!-- 定时创建 -->
+        <div class="task-card cre-task">
+          <div class="task-card-hd">
+            <span class="task-icon">🚀</span>
+            <div>
+              <div class="task-title">定时批量创建服务器</div>
+              <div class="task-subtitle">每天到达指定时刻后自动创建若干台服务器</div>
+            </div>
+          </div>
+
+          <div class="tog-row" style="margin-bottom:12px;">
+            <div><div class="tog-lbl">启用定时创建</div></div>
+            <div class="tog" id="tog-cre" onclick="toggleSchedField('schedule_create_enabled','tog-cre', updateTimeline)"></div>
+          </div>
+
+          <div style="background:var(--bg3);border-radius:var(--r2);padding:14px;margin-bottom:14px;">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px;">每天执行时刻</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input class="inp" id="cfg-cre-h" type="number" min="0" max="23" placeholder="08"
+                     style="width:72px;text-align:center;font-size:20px;font-weight:700;padding:8px;"
+                     oninput="updateTimeline()">
+              <span style="font-size:24px;color:var(--text2);font-weight:700;">:</span>
+              <input class="inp" id="cfg-cre-m" type="number" min="0" max="59" placeholder="00"
+                     style="width:72px;text-align:center;font-size:20px;font-weight:700;padding:8px;"
+                     oninput="updateTimeline()">
+              <span style="font-size:13px;color:var(--text2);margin-left:4px;" id="cre-tz-label">（时区）</span>
+            </div>
+            <div id="cre-time-preview" style="font-size:11px;color:var(--text3);margin-top:8px;"></div>
+          </div>
+
+          <div class="fg">
+            <label class="fl">创建台数</label>
+            <input class="inp" id="cfg-cre-count" type="number" min="1" max="20" placeholder="3">
+            <div class="fh">每次定时创建的服务器数量</div>
+          </div>
+          <div class="fg">
+            <label class="fl">服务器名称前缀</label>
+            <input class="inp" id="cfg-cre-prefix" placeholder="hetzner-auto">
+            <div class="fh">生成规则：前缀-01、前缀-02… 创建后自动同步 Vertex IP</div>
+          </div>
+
+          <div class="task-status-row">
+            <div class="task-last" id="cre-last-run">上次执行: —</div>
+            <button class="btn btn-xs btn-g" onclick="triggerCreateNow()">立即执行一次</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 调度器说明 -->
+      <div style="margin-top:16px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);font-size:11px;color:var(--text3);line-height:1.8;">
+        📌 <b style="color:var(--text2);">工作原理：</b>调度器每 30 秒检查一次时间（按所选时区），当 <code>当前小时 == 设定小时</code> 且 <code>当前分钟 == 设定分钟</code> 时触发，同一天内同一时刻只触发一次。<br>
+        📌 <b style="color:var(--text2);">跨日场景：</b>23:00 删除 → 次日 08:00 创建，两个任务独立判断，不互相依赖。<br>
+        📌 <b style="color:var(--text2);">时区说明：</b>务必设置正确时区，服务器部署在德国时系统时间为 UTC/CET，若你在中国需选择 Asia/Shanghai。
+      </div>
+    </div>
+
+    <!-- ── MONITOR-CFG（原 schedule 的流量监控部分）── -->
+    <div class="page" id="page-monitor-cfg">
+      <div class="ph">
+        <div class="ph-title"><h2>监控配置</h2><p>流量阈值、自动重建与工作时段</p></div>
+      </div>
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">⏱ 监控参数</div></div>
+          <div class="tog-row">
+            <div><div class="tog-lbl">自动重建</div><div class="tog-desc">流量超阈值时自动重建服务器</div></div>
+            <div class="tog" id="tog-rebuild" onclick="toggleField('auto_rebuild_enabled','tog-rebuild')"></div>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-lbl">工作时段限制</div><div class="tog-desc">仅在指定时段内运行流量监控</div></div>
+            <div class="tog" id="tog-tw" onclick="toggleField('enable_time_window','tog-tw')"></div>
+          </div>
+          <div style="height:14px;"></div>
+          <div class="fg">
+            <label class="fl">检查间隔（秒）</label>
+            <input class="inp" id="cfg-interval" type="number" min="60" placeholder="1200">
+            <div class="fh">建议 600~3600 秒，默认 1200</div>
+          </div>
+          <div class="fg">
+            <label class="fl">流量阈值（0.0~1.0）</label>
+            <input class="inp" id="cfg-thr" type="number" min="0.1" max="1" step="0.05" placeholder="0.8">
+            <div class="fh">超过此比例时触发预警/重建</div>
+          </div>
+          <div class="fg">
+            <label class="fl">默认地区</label>
+            <select class="inp" id="cfg-loc">
+              <option value="nbg1">nbg1 — 德国纽伦堡</option>
+              <option value="fsn1">fsn1 — 德国法尔肯施泰因</option>
+              <option value="hel1">hel1 — 芬兰赫尔辛基</option>
+              <option value="ash">ash — 美国弗吉尼亚</option>
+              <option value="hil">hil — 美国希尔斯伯勒</option>
+              <option value="sin">sin — 新加坡</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title">🕐 工作时段</div></div>
+          <div class="frow">
+            <div class="fg">
+              <label class="fl">开始（小时）</label>
+              <input class="inp" id="cfg-sh" type="number" min="0" max="23" placeholder="8">
+            </div>
+            <div class="fg">
+              <label class="fl">结束（小时）</label>
+              <input class="inp" id="cfg-eh" type="number" min="0" max="23" placeholder="23">
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">结束（分钟）</label>
+            <input class="inp" id="cfg-em" type="number" min="0" max="59" placeholder="30">
+          </div>
+
+          <div class="section-sep"></div>
+
+          <div class="card-hd" style="margin-bottom:10px;">
+            <div class="card-title">🖥 型号重建优先级</div>
+            <button class="btn btn-xs" onclick="nav('catalog')">查看型号参考 →</button>
+          </div>
+          <div class="fh" style="margin-bottom:10px;">按顺序尝试，无货自动跳到下一个。</div>
+          <div class="chips" id="types-chips"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+            <input class="inp" id="type-inp" placeholder="输入型号如 cx43" style="flex:1;">
+            <button class="btn btn-sm" onclick="addType()">+ 添加</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn" onclick="loadMonitorCfg()">↺ 重置</button>
+        <button class="btn btn-a" onclick="saveMonitorCfg()">✓ 保存配置</button>
+      </div>
+    </div>
+
+    <!-- ── LOGS ── -->
+    <div class="page" id="page-logs">
+      <div class="ph">
+        <div class="ph-title"><h2>运行日志</h2><p>监控与操作实时记录</p></div>
+        <div class="ph-actions">
+          <button class="btn" onclick="loadLogs()">🔄 刷新</button>
+          <button class="btn btn-d btn-sm" onclick="clearLogs()">清空</button>
+        </div>
+      </div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="page" id="page-settings">
+      <div class="ph">
+        <div class="ph-title"><h2>系统设置</h2><p>API 密钥、通知与访问配置</p></div>
+      </div>
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">🔑 Hetzner API</div></div>
+          <div class="fg">
+            <label class="fl">API Key</label>
+            <input class="inp" id="s-apikey" type="password" placeholder="hcloud_xxx...">
+            <div class="fh" id="s-apikey-hint" style="color:var(--cyan);"></div>
+          </div>
+          <div class="fg">
+            <label class="fl">默认快照 ID</label>
+            <input class="inp" id="s-snap" placeholder="快照数字 ID，用于重建">
+          </div>
+          <div class="fg">
+            <label class="fl">SSH 密钥 IDs（逗号分隔）</label>
+            <input class="inp" id="s-ssh" placeholder="12345, 67890">
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-a" onclick="saveApiCfg()">保存</button>
+            <button class="btn" onclick="testApi()">🔗 测试连接</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title">📨 Telegram 通知</div></div>
+          <div class="fg">
+            <label class="fl">Bot Token</label>
+            <input class="inp" id="s-tgt" type="password" placeholder="1234567890:AABBcc...">
+            <div class="fh" id="s-tgt-hint" style="color:var(--cyan);"></div>
+          </div>
+          <div class="fg">
+            <label class="fl">Chat ID</label>
+            <input class="inp" id="s-tgc" placeholder="-100xxxxxxxx">
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-a" onclick="saveTgCfg()">保存</button>
+            <button class="btn" onclick="testTg()">发送测试</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title">🔐 访问安全</div></div>
+          <div class="fg">
+            <label class="fl">修改密码</label>
+            <input class="inp" id="s-pwd" type="password" placeholder="留空则不修改">
+          </div>
+          <button class="btn btn-a" onclick="savePwd()">更新密码</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ════ STATE ════════════════════════════════════════════════════════
+const S = {
+  servers: [], config: {}, catalog: {},
+  serverTypes: [], monitorRunning: false,
+  schedCfg: {},   // 定时任务本地状态
+  pollTimer: null
+};
+
+// ════ API ══════════════════════════════════════════════════════════
+async function api(path, method='GET', body=null) {
+  const opts = { method, credentials:'include', headers:{'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api'+path, opts);
+  const d = await r.json();
+  if (r.status === 401) { showLogin(); throw new Error('Unauth'); }
+  return { ok: r.ok, status: r.status, data: d };
+}
+
+// ════ TOAST ════════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const icons = {ok:'✅', err:'❌', wrn:'⚠️'};
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+// ════ AUTH ═════════════════════════════════════════════════════════
+async function checkAuth() {
+  try {
+    const r = await fetch('/api/auth/status', {credentials:'include'});
+    const d = await r.json();
+    if (d.authenticated) showApp(); else showLogin();
+  } catch { showLogin(); }
+}
+
+async function doLogin() {
+  const pwd = document.getElementById('lpwd').value;
+  const r = await fetch('/api/login', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({password:pwd})
+  });
+  const d = await r.json();
+  if (r.ok) { showApp(); initApp(); }
+  else { document.getElementById('lerr').style.display='block'; }
+}
+document.getElementById('lpwd').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+async function doLogout() { await api('/logout','POST'); showLogin(); }
+function showLogin() {
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').classList.remove('show');
+}
+function showApp() {
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').classList.add('show');
+}
+
+// ════ NAV ══════════════════════════════════════════════════════════
+function nav(page) {
+  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
+  const ni = document.querySelector(`[data-p="${page}"]`);
+  if (ni) ni.classList.add('active');
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  const pg = document.getElementById(`page-${page}`);
+  if (pg) pg.classList.add('active');
+  const actions = {
+    dashboard:   () => refreshServers(),
+    servers:     () => refreshServers(),
+    snapshots:   () => loadImages(),
+    vertex:      () => { loadVertex(); loadVertexCfg(); },
+    catalog:     () => renderCatalog(),
+    schedule:    () => loadScheduleCfg(),
+    'monitor-cfg': () => loadMonitorCfg(),
+    logs:        () => loadLogs(),
+    settings:    () => loadSettings()
+  };
+  actions[page]?.();
+}
+
+// ════ INIT ═════════════════════════════════════════════════════════
+async function initApp() {
+  await loadConfig();
+  await loadCatalog();
+  await refreshServers();
+  await checkMonitor();
+  startPoll();
+}
+
+async function loadConfig() {
+  const { data } = await api('/config');
+  S.config = data;
+  S.serverTypes = data.server_types || ['cx43'];
+  return data;
+}
+
+async function loadCatalog() {
+  const { data } = await api('/config/server-type-catalog');
+  S.catalog = data.catalog || {};
+}
+
+// ════ MONITOR ══════════════════════════════════════════════════════
+async function checkMonitor() {
+  const { data } = await api('/monitor/status');
+  S.monitorRunning = data.running;
+  updateMonUI(data);
+  updateSchedStatus(data);
+}
+
+function updateMonUI(data) {
+  const dot = document.getElementById('mon-dot');
+  const lbl = document.getElementById('mon-label');
+  const btn = document.getElementById('mon-btn');
+  if (S.monitorRunning) {
+    dot.className = 'mon-dot on';
+    lbl.textContent = '监控运行中';
+    btn.textContent = '⏹ 停止监控';
+    btn.className = 'btn btn-d';
+  } else {
+    dot.className = 'mon-dot';
+    lbl.textContent = '监控未启动';
+    btn.textContent = '▶ 启动监控';
+    btn.className = 'btn btn-a';
+  }
+  if (data?.last_check) {
+    const d = new Date(data.last_check);
+    document.getElementById('last-check-txt').textContent = `上次: ${d.toLocaleTimeString('zh-CN')}`;
+  }
+  if (data?.next_check) {
+    const d = new Date(data.next_check);
+    const now = new Date();
+    const diff = Math.max(0, Math.round((d - now) / 1000));
+    document.getElementById('s-next').textContent = diff > 0 ? `${diff}s` : '即将';
+  }
+}
+
+function updateSchedStatus(data) {
+  const el = document.getElementById('s-sched');
+  const sub = document.getElementById('s-sched-sub');
+  const btn = document.getElementById('sched-toggle-btn');
+  if (!el) return;
+  const running = data?.scheduler_running;
+  el.textContent = running ? '运行中' : '已停止';
+  el.style.color = running ? 'var(--green)' : 'var(--text3)';
+  if (sub) sub.textContent = running ? '定时调度器运行中' : '点击定时任务配置';
+  if (btn) {
+    btn.textContent = running ? '⏹ 停止调度器' : '▶ 启动调度器';
+    btn.className = running ? 'btn btn-d' : 'btn btn-g';
+  }
+  // 更新定时任务页状态
+  const delLast = document.getElementById('del-last-run');
+  const creLast = document.getElementById('cre-last-run');
+  if (delLast && data?.last_scheduled_delete) {
+    const d = new Date(data.last_scheduled_delete);
+    delLast.textContent = `上次执行: ${d.toLocaleString('zh-CN')}`;
+  }
+  if (creLast && data?.last_scheduled_create) {
+    const d = new Date(data.last_scheduled_create);
+    creLast.textContent = `上次执行: ${d.toLocaleString('zh-CN')}`;
+  }
+  // 总开关
+  setToggle('tog-sched-master', S.config.scheduled_tasks_enabled);
+}
+
+async function toggleMon() {
+  if (S.monitorRunning) {
+    await api('/monitor/stop','POST'); toast('监控已停止','wrn');
+  } else {
+    await api('/monitor/start','POST'); toast('监控已启动');
+  }
+  S.monitorRunning = !S.monitorRunning;
+  updateMonUI({});
+}
+
+async function checkNow() {
+  await api('/monitor/check-now','POST');
+  toast('已触发立即检查，稍后刷新查看结果','wrn');
+  setTimeout(() => refreshServers(true), 4000);
+}
+
+function startPoll() {
+  if (S.pollTimer) clearInterval(S.pollTimer);
+  S.pollTimer = setInterval(() => {
+    const active = document.querySelector('.page.active')?.id;
+    if (active === 'page-dashboard' || active === 'page-servers') refreshServers();
+    if (active === 'page-logs') loadLogs();
+    checkMonitor();
+  }, 60000);
+}
+
+// ════ SCHEDULER ════════════════════════════════════════════════════
+async function toggleScheduler() {
+  const { data } = await api('/monitor/status');
+  const running = data.scheduler_running;
+  if (running) {
+    // 停止：关闭总开关
+    await api('/config','POST',{scheduled_tasks_enabled: false});
+    S.config.scheduled_tasks_enabled = false;
+    toast('定时调度器已停止','wrn');
+  } else {
+    await api('/config','POST',{scheduled_tasks_enabled: true});
+    S.config.scheduled_tasks_enabled = true;
+    toast('定时调度器已启动');
+  }
+  await loadConfig();
+  await checkMonitor();
+}
+
+async function toggleScheduleMaster() {
+  S.config.scheduled_tasks_enabled = !S.config.scheduled_tasks_enabled;
+  setToggle('tog-sched-master', S.config.scheduled_tasks_enabled);
+  await api('/config','POST',{scheduled_tasks_enabled: S.config.scheduled_tasks_enabled});
+  await checkMonitor();
+  toast(S.config.scheduled_tasks_enabled ? '调度器已启动' : '调度器已停止', S.config.scheduled_tasks_enabled ? 'ok' : 'wrn');
+}
+
+// ════ SERVERS ══════════════════════════════════════════════════════
+async function refreshServers(force=false) {
+  const { data } = await api('/servers' + (force ? '?refresh=1' : ''));
+  S.servers = data.servers || [];
+  renderDash();
+  renderSvList();
+  if (data.last_check) {
+    const d = new Date(data.last_check);
+    document.getElementById('last-check-txt').textContent = `上次: ${d.toLocaleTimeString('zh-CN')}`;
+  }
+}
+
+function renderDash() {
+  const sv = S.servers;
+  const thr = S.config.traffic_threshold || 0.8;
+  document.getElementById('s-total').textContent = sv.length;
+  document.getElementById('s-run').textContent = sv.filter(s=>s.status==='running').length;
+  const high = sv.filter(s=>s.usage_ratio >= thr);
+  document.getElementById('s-high').textContent = high.length;
+  document.getElementById('s-thr-lbl').textContent = `超过 ${Math.round(thr*100)}% 阈值`;
+  const tot = sv.reduce((a,s)=>a+s.outgoing_traffic,0);
+  document.getElementById('s-traffic').innerHTML = `${(tot/1024**3).toFixed(1)}<small> GB</small>`;
+  const el = document.getElementById('dash-servers');
+  if (!sv.length) { el.innerHTML = emptyState('🖥','暂无服务器','当前项目下没有运行中的实例'); return; }
+  el.innerHTML = `<div class="servers-grid">${sv.map(s=>svCard(s,thr)).join('')}</div>`;
+}
+
+function renderSvList() {
+  const el = document.getElementById('sv-list');
+  const sv = S.servers;
+  const thr = S.config.traffic_threshold || 0.8;
+  if (!sv.length) { el.innerHTML = emptyState('🖥','暂无服务器','点击右上角创建'); return; }
+  el.innerHTML = `<div class="servers-grid">${sv.map(s=>svCard(s,thr)).join('')}</div>`;
+}
+
+function svCard(s, thr) {
+  const r = s.usage_ratio || 0;
+  const pct = s.usage_percent || 0;
+  const outG = (s.outgoing_traffic/1024**3).toFixed(2);
+  const incG = (s.included_traffic/1024**3).toFixed(2);
+  let tc = 't0';
+  if (r >= 0.9) tc = 't3';
+  else if (r >= thr) tc = 't2';
+  else if (r >= 0.5) tc = 't1';
+  const pctColor = tc==='t3'?'var(--red)':tc==='t2'?'var(--orange)':tc==='t1'?'var(--yellow)':'var(--green)';
+  const bw = Math.min(100, Math.round(r*100));
+  const bc = s.status==='running'?'b-run':s.status==='off'?'b-off':'b-init';
+  const icon = r>=thr?'🔴':r>=0.5?'🟡':'🟢';
+  const ti = s.server_type_info || {};
+  const typeDetail = ti.cores ? `${ti.cores}c/${ti.memory}G` : '';
+  return `<div class="sv-card">
+    <div class="sv-card-top">
+      <div>
+        <div class="sv-name">${icon} ${s.name}</div>
+        <div class="sv-meta">
+          <span class="badge ${bc}">● ${s.status}</span>
+          <span class="type-mini">${s.server_type}${typeDetail ? ` · ${typeDetail}` : ''}</span>
+        </div>
+      </div>
+    </div>
+    <div class="sv-ip">
+      <span>${s.ipv4||'—'}</span>
+      ${s.ipv4?`<button onclick="copy('${s.ipv4}')" title="复制">📋</button>`:''}
+    </div>
+    <div>
+      <div class="tb-hd">
+        <span class="tb-lbl">出站流量</span>
+        <span class="tb-pct" style="color:${pctColor}">${pct}%</span>
+      </div>
+      <div class="tb-track"><div class="tb-fill ${tc}" style="width:${bw}%"></div></div>
+      <div class="tb-detail">${outG} GB / ${incG} GB included</div>
+    </div>
+    <div class="sv-foot">
+      <div class="sv-tags">
+        <span class="tag">${s.location||''}</span>
+        ${s.image?.type==='snapshot'?`<span class="tag snap">snap:${s.image.id}</span>`:`<span class="tag">${s.image?.name||'?'}</span>`}
+        ${ti.traffic?`<span class="tag">${ti.traffic}</span>`:''}
+      </div>
+      <div class="sv-acts">
+        <button class="btn btn-sm btn-g" onclick="rebuildSv(${s.id},'${s.name}')" title="重建">🔄</button>
+        <button class="btn btn-sm btn-d" onclick="confirmDel(${s.id},'${s.name}')" title="删除">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function confirmDel(id, name) {
+  openModal('确认删除', `
+    <p style="color:var(--text2);margin-bottom:18px;">确定删除 <strong style="color:var(--red)">${name}</strong>？此操作不可撤销。</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-d" onclick="delSv(${id})">确认删除</button>
+    </div>`);
+}
+
+async function delSv(id) {
+  closeModal();
+  const { ok } = await api(`/servers/${id}`, 'DELETE');
+  if (ok) { toast('服务器已删除'); await refreshServers(true); }
+  else toast('删除失败', 'err');
+}
+
+async function rebuildSv(id, name) {
+  openModal('确认重建', `
+    <p style="color:var(--text2);margin-bottom:6px;">重建 <strong>${name}</strong></p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:18px;">将按优先级创建新服务器，成功后删除旧服务器，并自动同步 Vertex IP</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-a" onclick="doRebuild(${id})">确认重建</button>
+    </div>`);
+}
+
+async function doRebuild(id) {
+  closeModal(); toast('重建中，请稍候...','wrn');
+  const { ok, data } = await api(`/servers/rebuild/${id}`, 'POST');
+  if (ok) {
+    toast(`重建成功！新IP: ${data.new_server?.ip}`);
+    await refreshServers(true);
+  } else toast(data.error||'重建失败','err');
+}
+
+function openCreateModal() {
+  const types = S.serverTypes;
+  const cfg = S.config;
+  openModal('创建服务器', `
+    <div class="fg">
+      <label class="fl">服务器名称</label>
+      <input class="inp" id="cr-name" placeholder="my-server-01">
+    </div>
+    <div class="fg">
+      <label class="fl">服务器型号</label>
+      <select class="inp" id="cr-type">
+        ${types.map(t=>`<option value="${t}">${t}${S.catalog[t]?` — ${S.catalog[t].cores}c/${S.catalog[t].memory}G`:''}</option>`).join('')}
+        ${Object.keys(S.catalog).filter(k=>!types.includes(k)).map(k=>`<option value="${k}">${k} — ${S.catalog[k].cores}c/${S.catalog[k].memory}G</option>`).join('')}
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">镜像/快照 ID</label>
+      <input class="inp" id="cr-img" placeholder="${cfg.initial_snapshot_id||'快照ID'}">
+      <div class="fh">留空使用默认快照 ID</div>
+    </div>
+    <div class="fg">
+      <label class="fl">地区</label>
+      <select class="inp" id="cr-loc">
+        <option value="nbg1">nbg1 — 德国纽伦堡</option>
+        <option value="fsn1">fsn1 — 法尔肯施泰因</option>
+        <option value="hel1">hel1 — 芬兰赫尔辛基</option>
+        <option value="ash">ash — 美国弗吉尼亚</option>
+        <option value="hil">hil — 美国希尔斯伯勒</option>
+        <option value="sin">sin — 新加坡</option>
+      </select>
+    </div>
+    <p style="font-size:11px;color:var(--cyan);margin-bottom:14px;">✅ 创建完成后将自动同步 Vertex 下载器 IP</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-a" onclick="doCreate()">✓ 创建</button>
+    </div>`);
+}
+
+async function doCreate() {
+  const name = document.getElementById('cr-name').value.trim();
+  const server_type = document.getElementById('cr-type').value;
+  const imgVal = document.getElementById('cr-img').value.trim() || S.config.initial_snapshot_id;
+  const location = document.getElementById('cr-loc').value;
+  if (!name) { toast('请输入服务器名称','err'); return; }
+  if (!imgVal) { toast('请输入镜像ID','err'); return; }
+  closeModal(); toast('正在创建（创建后将自动同步IP）...','wrn');
+  const { ok, data } = await api('/servers/create','POST',{name, server_type, image_id:parseInt(imgVal), location});
+  if (ok) {
+    toast(`创建成功！IP: ${data.server.ip}，正在同步 Vertex...`);
+    await refreshServers(true);
+  } else toast(data.error||'创建失败','err');
+}
+
+// ════ IMAGES ═══════════════════════════════════════════════════════
+async function loadImages() {
+  const type = document.getElementById('img-type')?.value||'snapshot';
+  document.getElementById('snap-list').innerHTML = '<div class="loading"><div class="spin"></div></div>';
+  const { data } = await api(`/images?type=${type}`);
+  const imgs = data.images||[];
+  if (!imgs.length) { document.getElementById('snap-list').innerHTML = emptyState('💾','暂无镜像'); return; }
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('zh-CN') : '—';
+  const fmtGB = n => n ? `${n.toFixed(1)}GB` : '—';
+  document.getElementById('snap-list').innerHTML = `<div class="snap-grid">
+    ${imgs.map(img=>`<div class="snap-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="snap-name">${img.name||img.description||'未命名'}</div>
+        <span class="snap-id-badge">${img.id}</span>
+      </div>
+      <div class="snap-meta">
+        <span>💿 ${fmtGB(img.disk_size)}</span>
+        <span>📦 ${fmtGB(img.image_size)}</span>
+        <span>🕐 ${fmtDate(img.created)}</span>
+      </div>
+      ${img.os_flavor?`<div style="font-size:11px;color:var(--text2);">${img.os_flavor} ${img.os_version||''}</div>`:''}
+      <div class="snap-acts">
+        <button class="btn btn-xs" onclick="copy('${img.id}')">📋 复制ID</button>
+        <button class="btn btn-xs btn-a" onclick="useSnap(${img.id})">＋ 用此创建</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function useSnap(id) {
+  nav('servers');
+  setTimeout(() => { openCreateModal(); setTimeout(()=>{ document.getElementById('cr-img').value=id; },60); }, 100);
+}
+
+// ════ VERTEX ═══════════════════════════════════════════════════════
+async function loadVertexCfg() {
+  const cfg = S.config;
+  document.getElementById('vcfg-url').value = cfg.vertex_api_url||'';
+  document.getElementById('vcfg-kw').value = cfg.vertex_downloader_keyword||'Hetzner';
+  setToggle('tog-vertex-sync', cfg.vertex_sync_enabled);
+  const status = document.getElementById('vertex-conn-status');
+  if (cfg.vertex_api_url) {
+    status.innerHTML = `<span style="font-size:12px;color:var(--text2);">当前地址: <span style="color:var(--cyan);font-family:var(--mono);">${cfg.vertex_api_url}</span></span>
+    ${cfg.vertex_cookies_set ? '<span style="font-size:11px;background:rgba(15,212,122,.1);color:var(--green);padding:2px 8px;border-radius:4px;margin-left:8px;">Cookie 已设置</span>' : '<span style="font-size:11px;background:rgba(242,75,96,.1);color:var(--red);padding:2px 8px;border-radius:4px;margin-left:8px;">Cookie 未设置</span>'}`;
+  }
+}
+
+async function saveVertexCfg() {
+  const url = document.getElementById('vcfg-url').value.trim();
+  const kw = document.getElementById('vcfg-kw').value.trim();
+  const cookies = document.getElementById('vcfg-cookies').value.trim();
+  const body = { vertex_api_url: url, vertex_downloader_keyword: kw };
+  if (cookies) body.vertex_cookies = cookies;
+  const { ok } = await api('/config','POST', body);
+  if (ok) { toast('Vertex 配置已保存'); await loadConfig(); await loadVertexCfg(); }
+  else toast('保存失败','err');
+}
+
+async function vertexTest() {
+  const { ok, data } = await api('/vertex/test','POST');
+  const status = document.getElementById('vertex-conn-status');
+  if (ok && data.success) {
+    toast(data.message);
+    status.innerHTML = `<span style="font-size:12px;color:var(--green);">✅ ${data.message}</span>`;
+  } else {
+    toast(data.message||data.error||'连接失败','err');
+    status.innerHTML = `<span style="font-size:12px;color:var(--red);">❌ ${data.message||data.error}</span>`;
+  }
+}
+
+async function loadVertex() {
+  document.getElementById('dl-list').innerHTML = '<div class="loading"><div class="spin"></div></div>';
+  const { ok, data } = await api('/vertex/downloaders');
+  if (!ok) {
+    document.getElementById('dl-list').innerHTML = `<div style="color:var(--red);font-size:13px;padding:20px;">${data.error||'加载失败，请检查 Vertex 配置'}</div>`;
+    document.getElementById('dl-count-txt').textContent = '';
+    return;
+  }
+  const dls = data.downloaders||[];
+  document.getElementById('dl-count-txt').textContent = `共 ${dls.length} 个下载器，${dls.filter(d=>d._is_hetzner).length} 个 Hetzner`;
+  if (!dls.length) { document.getElementById('dl-list').innerHTML = emptyState('🔌','暂无下载器'); return; }
+  document.getElementById('dl-list').innerHTML = `<div class="dl-list">
+    ${dls.map(dl=>`<div class="dl-card ${dl._is_hetzner?'is-hetzner':''}">
+      <div class="dl-dot ${dl.status==='active'?'active':''}"></div>
+      <div class="dl-info">
+        <div class="dl-alias">${dl.alias||'未命名'} ${dl._is_hetzner?'<span class="dl-badge-h">Hetzner</span>':''}</div>
+        <div class="dl-url">${dl.clientUrl||dl.url||'—'}</div>
+      </div>
+      ${dl._current_ip ? `<div class="dl-ip">${dl._current_ip}</div>` : ''}
+    </div>`).join('')}
+  </div>`;
+}
+
+async function vertexSyncNow() {
+  toast('正在从 Hetzner API 拉取最新 IP 并同步...','wrn');
+  // 不传 ips，让后端实时从 Hetzner API 拉取
+  const { ok, data } = await api('/vertex/sync','POST', {});
+  if (ok) {
+    toast(`同步完成: 更新 ${data.result.updated} / 保持 ${data.result.kept} / 失败 ${data.result.failed}`);
+    document.getElementById('vertex-last-sync').textContent =
+      `上次同步: ${new Date().toLocaleTimeString('zh-CN')} — 更新 ${data.result.updated} 个，使用IP: ${(data.ips_used||[]).join(', ')}`;
+    await loadVertex();
+  } else toast(data.error||'同步失败','err');
+}
+
+// ════ CATALOG ══════════════════════════════════════════════════════
+function renderCatalog() {
+  const filter = document.getElementById('cat-filter')?.value||'';
+  const catalog = S.catalog;
+  const types = Object.entries(catalog).filter(([k,v]) => !filter || v.series === filter);
+  document.getElementById('cat-current-types').textContent = (S.serverTypes||[]).join(' → ');
+  if (!types.length) { document.getElementById('catalog-grid').innerHTML = emptyState('📋','暂无数据'); return; }
+  document.getElementById('catalog-grid').innerHTML = types.map(([name, info]) => {
+    const sel = (S.serverTypes||[]).includes(name);
+    const seriesColor = info.series==='CX'?'var(--accent2)':info.series==='CPX'?'var(--cyan)':'var(--purple)';
+    return `<div class="tc-card ${sel?'sel':''}" onclick="toggleCatalogType('${name}')">
+      <div class="tc-name">
+        <span class="tc-series-badge" style="background:${seriesColor}22;color:${seriesColor}">${info.series}</span>
+        ${name}${info.arch==='arm64'?` <span style="font-size:9px;color:var(--purple)">ARM64</span>`:''}
+      </div>
+      <div class="tc-specs">
+        <span class="tc-spec">🔲 ${info.cores} vCPU</span>
+        <span class="tc-spec">💾 ${info.memory}GB RAM</span>
+        <span class="tc-spec">💿 ${info.disk}GB SSD</span>
+      </div>
+      <div class="tc-traffic">🌐 ${info.traffic}</div>
+      ${sel?`<div style="font-size:10px;color:var(--green);margin-top:6px;">✓ 已在优先级列表</div>`:'<div style="font-size:10px;color:var(--text3);margin-top:6px;">点击添加到优先级</div>'}
+    </div>`;
+  }).join('');
+}
+
+function toggleCatalogType(name) {
+  if (!S.serverTypes) S.serverTypes = [];
+  if (!S.serverTypes.includes(name)) {
+    S.serverTypes.push(name);
+    toast(`已添加 ${name} 到优先级列表`);
+  } else {
+    S.serverTypes = S.serverTypes.filter(t=>t!==name);
+    toast(`已移除 ${name}`,'wrn');
+  }
+  renderCatalog();
+  renderTypeChips();
+  api('/config','POST',{server_types: S.serverTypes});
+}
+
+// ════ SCHEDULE（定时任务）══════════════════════════════════════════
+function loadScheduleCfg() {
+  const c = S.config;
+  const getEl = id => document.getElementById(id);
+
+  getEl('cfg-del-h').value = c.schedule_delete_hour ?? 23;
+  getEl('cfg-del-m').value = String(c.schedule_delete_minute ?? 0).padStart(2,'0');
+  getEl('cfg-cre-h').value = c.schedule_create_hour ?? 8;
+  getEl('cfg-cre-m').value = String(c.schedule_create_minute ?? 0).padStart(2,'0');
+  getEl('cfg-cre-count').value = c.schedule_create_count ?? 3;
+  getEl('cfg-cre-prefix').value = c.schedule_server_name_prefix ?? 'hetzner-auto';
+
+  // 时区选择
+  const tzEl = getEl('cfg-tz');
+  if (tzEl) {
+    const savedTz = c.schedule_timezone || 'Asia/Shanghai';
+    if (![...tzEl.options].some(o => o.value === savedTz)) {
+      tzEl.add(new Option(savedTz, savedTz));
+    }
+    tzEl.value = savedTz;
+  }
+
+  setToggle('tog-sched-master', c.scheduled_tasks_enabled);
+  setToggle('tog-del', c.schedule_delete_enabled);
+  setToggle('tog-cre', c.schedule_create_enabled);
+
+  // 显示服务器本地时间（浏览器侧）
+  const srvEl = document.getElementById('srv-localtime');
+  if (srvEl) srvEl.textContent = new Date().toLocaleString('zh-CN');
+
+  updateTimeline();
+}
+
+function pad2(n) { return String(parseInt(n) || 0).padStart(2, '0'); }
+
+function calcGapText(dh, dm, ch, cm) {
+  let gap = (parseInt(ch)*60+parseInt(cm)) - (parseInt(dh)*60+parseInt(dm));
+  if (gap <= 0) gap += 24 * 60;
+  const h = Math.floor(gap / 60), m = gap % 60;
+  return h > 0 ? (m > 0 ? `间隔 ${h}h${m}m` : `间隔 ${h}h`) : `间隔 ${m}m`;
+}
+
+function updateTimeline() {
+  const dh = parseInt(document.getElementById('cfg-del-h')?.value ?? S.config.schedule_delete_hour ?? 23);
+  const dm = parseInt(document.getElementById('cfg-del-m')?.value ?? S.config.schedule_delete_minute ?? 0);
+  const ch = parseInt(document.getElementById('cfg-cre-h')?.value ?? S.config.schedule_create_hour ?? 8);
+  const cm = parseInt(document.getElementById('cfg-cre-m')?.value ?? S.config.schedule_create_minute ?? 0);
+  const tz = document.getElementById('cfg-tz')?.value || S.config.schedule_timezone || 'Asia/Shanghai';
+  const delEnabled = S.config.schedule_delete_enabled;
+  const creEnabled = S.config.schedule_create_enabled;
+
+  const set = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+
+  set('tl-delete-time', `${pad2(dh)}:${pad2(dm)}`);
+  set('tl-create-time', `${pad2(ch)}:${pad2(cm)}`);
+  set('tl-gap-text', calcGapText(dh, dm, ch, cm));
+
+  const delStatusEl = document.getElementById('tl-delete-status');
+  const creStatusEl = document.getElementById('tl-create-status');
+  if (delStatusEl) { delStatusEl.textContent = delEnabled ? '✓ 已启用' : '未启用'; delStatusEl.style.opacity = delEnabled?'1':'0.5'; }
+  if (creStatusEl) { creStatusEl.textContent = creEnabled ? '✓ 已启用' : '未启用'; creStatusEl.style.opacity = creEnabled?'1':'0.5'; }
+
+  const shortTz = tz.split('/').pop().replace(/_/g,' ');
+  set('del-tz-label', shortTz);
+  set('cre-tz-label', shortTz);
+
+  set('del-time-preview', delEnabled
+    ? `每天 ${pad2(dh)}:${pad2(dm)}（${tz}）执行删除`
+    : '未启用，不会自动删除');
+  set('cre-time-preview', creEnabled
+    ? `每天 ${pad2(ch)}:${pad2(cm)}（${tz}）执行创建`
+    : '未启用，不会自动创建');
+}
+
+async function saveSchedule() {
+  const body = {
+    scheduled_tasks_enabled: S.config.scheduled_tasks_enabled,
+    schedule_timezone: document.getElementById('cfg-tz')?.value || 'Asia/Shanghai',
+    schedule_delete_enabled: S.config.schedule_delete_enabled,
+    schedule_delete_hour: parseInt(document.getElementById('cfg-del-h').value),
+    schedule_delete_minute: parseInt(document.getElementById('cfg-del-m').value),
+    schedule_create_enabled: S.config.schedule_create_enabled,
+    schedule_create_hour: parseInt(document.getElementById('cfg-cre-h').value),
+    schedule_create_minute: parseInt(document.getElementById('cfg-cre-m').value),
+    schedule_create_count: parseInt(document.getElementById('cfg-cre-count').value),
+    schedule_server_name_prefix: document.getElementById('cfg-cre-prefix').value.trim() || 'hetzner-auto',
+  };
+  // 基本校验
+  if (isNaN(body.schedule_delete_hour) || body.schedule_delete_hour < 0 || body.schedule_delete_hour > 23 ||
+      isNaN(body.schedule_delete_minute) || body.schedule_delete_minute < 0 || body.schedule_delete_minute > 59) {
+    toast('删除时间填写有误（小时 0-23，分钟 0-59）', 'err'); return;
+  }
+  if (isNaN(body.schedule_create_hour) || body.schedule_create_hour < 0 || body.schedule_create_hour > 23 ||
+      isNaN(body.schedule_create_minute) || body.schedule_create_minute < 0 || body.schedule_create_minute > 59) {
+    toast('创建时间填写有误（小时 0-23，分钟 0-59）', 'err'); return;
+  }
+  const { ok } = await api('/config','POST', body);
+  if (ok) {
+    await loadConfig();
+    updateTimeline();
+    await checkMonitor();
+    toast(`✅ 已保存：每天 ${pad2(body.schedule_delete_hour)}:${pad2(body.schedule_delete_minute)} 删除，${pad2(body.schedule_create_hour)}:${pad2(body.schedule_create_minute)} 创建（${body.schedule_timezone}）`);
+  } else toast('保存失败','err');
+}
+
+async function triggerDeleteNow() {
+  openModal('确认立即执行', `
+    <p style="color:var(--text2);margin-bottom:8px;">⚠️ 这将<strong style="color:var(--red)">立即删除账户下所有服务器</strong>，确认继续？</p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:18px;">此操作不可撤销。建议仅在测试时使用。</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-d" onclick="doTriggerDelete()">确认删除所有</button>
+    </div>`);
+}
+
+async function doTriggerDelete() {
+  closeModal(); toast('正在删除所有服务器...','wrn');
+  const { ok, data } = await api('/scheduler/trigger-delete','POST');
+  if (ok) { toast(data.message); setTimeout(() => refreshServers(true), 3000); }
+  else toast(data.error||'触发失败','err');
+}
+
+async function triggerCreateNow() {
+  const count = document.getElementById('cfg-cre-count')?.value || S.config.schedule_create_count || 3;
+  const prefix = document.getElementById('cfg-cre-prefix')?.value || S.config.schedule_server_name_prefix || 'hetzner-auto';
+  openModal('确认立即执行', `
+    <p style="color:var(--text2);margin-bottom:8px;">将立即创建 <strong style="color:var(--green)">${count} 台</strong>服务器（前缀: ${prefix}）</p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:18px;">使用当前保存的快照ID和型号优先级配置。</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-g" onclick="doTriggerCreate()">确认创建</button>
+    </div>`);
+}
+
+async function doTriggerCreate() {
+  closeModal(); toast('正在批量创建服务器...','wrn');
+  const { ok, data } = await api('/scheduler/trigger-create','POST');
+  if (ok) {
+    toast(data.message);
+    setTimeout(() => refreshServers(true), 5000);
+  } else toast(data.error||'触发失败','err');
+}
+
+// ════ MONITOR CFG（原 schedule 页面逻辑）══════════════════════════
+function loadMonitorCfg() {
+  const c = S.config;
+  document.getElementById('cfg-interval').value = c.check_interval||1200;
+  document.getElementById('cfg-thr').value = c.traffic_threshold||0.8;
+  document.getElementById('cfg-sh').value = c.work_start_hour||8;
+  document.getElementById('cfg-eh').value = c.work_end_hour||23;
+  document.getElementById('cfg-em').value = c.work_end_minute||30;
+  const loc = document.getElementById('cfg-loc');
+  if (loc) loc.value = c.default_location||'nbg1';
+  setToggle('tog-rebuild', c.auto_rebuild_enabled);
+  setToggle('tog-tw', c.enable_time_window);
+  renderTypeChips(c.server_types||['cx43']);
+}
+
+function renderTypeChips(types) {
+  if (types) S.serverTypes = types;
+  document.getElementById('types-chips').innerHTML = (S.serverTypes||[]).map((t,i)=>
+    `<div class="chip sel">
+      ${t}${S.catalog[t]?` <small style="color:var(--text3)">${S.catalog[t].cores}c</small>`:''}
+      <span class="chip-x" onclick="removeType(${i})">×</span>
+    </div>`).join('') +
+    `<div class="chip" style="border-style:dashed;cursor:pointer;" onclick="nav('catalog')">+ 查看型号</div>`;
+}
+
+function addType() {
+  const v = document.getElementById('type-inp').value.trim().toLowerCase();
+  if (v && !S.serverTypes) S.serverTypes = [];
+  if (v) { S.serverTypes.push(v); renderTypeChips(); document.getElementById('type-inp').value=''; }
+}
+
+function removeType(i) { S.serverTypes.splice(i,1); renderTypeChips(); }
+
+async function saveMonitorCfg() {
+  const body = {
+    check_interval: parseInt(document.getElementById('cfg-interval').value),
+    traffic_threshold: parseFloat(document.getElementById('cfg-thr').value),
+    work_start_hour: parseInt(document.getElementById('cfg-sh').value),
+    work_end_hour: parseInt(document.getElementById('cfg-eh').value),
+    work_end_minute: parseInt(document.getElementById('cfg-em').value),
+    default_location: document.getElementById('cfg-loc').value,
+    auto_rebuild_enabled: S.config.auto_rebuild_enabled,
+    enable_time_window: S.config.enable_time_window,
+    server_types: S.serverTypes
+  };
+  const { ok } = await api('/config','POST', body);
+  if (ok) { await loadConfig(); startPoll(); toast('监控配置已保存'); }
+  else toast('保存失败','err');
+}
+
+// ════ LOGS ═════════════════════════════════════════════════════════
+async function loadLogs() {
+  const { data } = await api('/monitor/logs?limit=200');
+  const logs = data.logs||[];
+  const box = document.getElementById('log-box');
+  if (!logs.length) { box.innerHTML = '<div style="color:var(--text3);text-align:center;padding:40px;">暂无日志</div>'; return; }
+  box.innerHTML = logs.map(l=>`<div class="log-row"><span class="log-t">${l.time}</span><span class="log-m ${l.level}">${escHtml(l.msg)}</span></div>`).join('');
+}
+function clearLogs() { document.getElementById('log-box').innerHTML='<div style="color:var(--text3);text-align:center;padding:40px;">已清空</div>'; }
+
+// ════ SETTINGS ═════════════════════════════════════════════════════
+async function loadSettings() {
+  const { data } = await api('/config');
+  S.config = data;
+  document.getElementById('s-snap').value = data.initial_snapshot_id||'';
+  document.getElementById('s-ssh').value = (data.ssh_keys||[]).join(', ');
+  if (data.hetzner_api_key_masked)
+    document.getElementById('s-apikey-hint').textContent = `当前: ${data.hetzner_api_key_masked}`;
+  if (data.telegram_bot_token_masked)
+    document.getElementById('s-tgt-hint').textContent = `当前: ${data.telegram_bot_token_masked}`;
+}
+
+async function saveApiCfg() {
+  const keyVal = document.getElementById('s-apikey').value.trim();
+  const snap = document.getElementById('s-snap').value.trim();
+  const sshRaw = document.getElementById('s-ssh').value.trim();
+  const ssh = sshRaw ? sshRaw.split(',').map(s=>s.trim()).filter(Boolean).map(Number) : [];
+  const body = { initial_snapshot_id: snap, ssh_keys: ssh };
+  if (keyVal) body.hetzner_api_key = keyVal;
+  const { ok } = await api('/config','POST', body);
+  if (ok) { toast('API 配置已保存'); await loadConfig(); await loadSettings(); }
+  else toast('保存失败','err');
+}
+
+async function testApi() {
+  const { ok, data } = await api('/servers?refresh=1');
+  if (ok) toast(`连接成功，找到 ${data.count} 台服务器`);
+  else toast('连接失败，请检查 API Key','err');
+}
+
+async function saveTgCfg() {
+  const t = document.getElementById('s-tgt').value.trim();
+  const c = document.getElementById('s-tgc').value.trim();
+  const body = {};
+  if (t) body.telegram_bot_token = t;
+  if (c) body.telegram_chat_id = c;
+  const { ok } = await api('/config','POST', body);
+  if (ok) toast('Telegram 配置已保存'); else toast('保存失败','err');
+}
+
+async function testTg() {
+  const { ok } = await api('/telegram/test','POST');
+  if (ok) toast('测试消息已发送！'); else toast('发送失败','err');
+}
+
+async function savePwd() {
+  const pwd = document.getElementById('s-pwd').value;
+  if (!pwd) { toast('请输入新密码','wrn'); return; }
+  const { ok } = await api('/config','POST',{web_password:pwd});
+  if (ok) { toast('密码已更新，请重新登录'); setTimeout(doLogout, 1600); }
+  else toast('更新失败','err');
+}
+
+// ════ TOGGLES ══════════════════════════════════════════════════════
+function setToggle(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'tog' + (val ? ' on' : '');
+}
+
+function toggleField(field, toggleId) {
+  S.config[field] = !S.config[field];
+  setToggle(toggleId, S.config[field]);
+}
+
+// 定时任务专用 toggle（支持回调）
+function toggleSchedField(field, toggleId, callback) {
+  S.config[field] = !S.config[field];
+  setToggle(toggleId, S.config[field]);
+  if (callback) callback();
+}
+
+// ════ MODAL ════════════════════════════════════════════════════════
+function openModal(title, body) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal-bg').classList.add('open');
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-bg')) return;
+  document.getElementById('modal-bg').classList.remove('open');
+}
+
+// ════ UTILS ════════════════════════════════════════════════════════
+function copy(text) {
+  navigator.clipboard?.writeText(text).then(()=>toast(`已复制: ${text}`)).catch(()=>toast('复制失败','err'));
+}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function emptyState(icon, title, sub='') {
+  return `<div class="empty"><div class="empty-icon">${icon}</div><h3>${title}</h3>${sub?`<p>${sub}</p>`:''}</div>`;
+}
+
+// ════ BOOT ═════════════════════════════════════════════════════════
+checkAuth().then(() => {
+  if (document.getElementById('app').classList.contains('show')) initApp();
+});
+
+setInterval(() => {
+  if (document.getElementById('page-logs').classList.contains('active')) loadLogs();
+  checkMonitor();
+}, 30000);
+</script>
+</body>
+</html>

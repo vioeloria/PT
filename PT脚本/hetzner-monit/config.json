@@ -1,0 +1,43 @@
+{
+  "hetzner_api_key": "",
+  "traffic_threshold": 0.8,
+  "check_interval": 1200,
+  "max_servers": 3,
+  "initial_snapshot_id": "",
+  "ssh_keys": [
+    
+  ],
+  "server_types": [
+    "cx43",
+    "cpx32",
+    "cx33"
+  ],
+  "enable_time_window": false,
+  "work_start_hour": 8,
+  "work_end_hour": 23,
+  "work_end_minute": 30,
+  "telegram_bot_token": "",
+  "telegram_chat_id": "",
+  "web_password": "",
+  "auto_rebuild_enabled": true,
+  "rebuild_schedule_enabled": false,
+  "default_location": "nbg1",
+  "vertex_api_url": "",
+  "vertex_cookies": "",
+  "vertex_username": "admin",
+  "vertex_password": "",
+  "vertex_cookie_check_interval": 300,
+  "vertex_sync_enabled": true,
+  "vertex_downloader_keyword": "Hetzner",
+  "vertex_password_md5": "",
+  "scheduled_tasks_enabled": true,
+  "schedule_timezone": "Asia/Shanghai",
+  "schedule_delete_enabled": true,
+  "schedule_delete_hour": 23,
+  "schedule_delete_minute": 0,
+  "schedule_create_enabled": true,
+  "schedule_create_hour": 8,
+  "schedule_create_minute": 0,
+  "schedule_create_count": 1,
+  "schedule_server_name_prefix": "hetzner-auto"
+}

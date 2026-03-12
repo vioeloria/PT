@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torrent Hub · 管理面板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c0f;
+    --surface:   #111418;
+    --border:    #1e242c;
+    --accent:    #00e5a0;
+    --accent2:   #0077ff;
+    --danger:    #ff4455;
+    --warn:      #ffaa00;
+    --text:      #e2e8f0;
+    --muted:     #546380;
+    --online:    #00e5a0;
+    --offline:   #ff4455;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Login overlay ── */
+  #login-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .login-box {
+    width: 380px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 48px 40px;
+    position: relative;
+  }
+
+  .login-box::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+  }
+
+  .login-logo {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .login-title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 32px;
+    background: linear-gradient(135deg, #fff 40%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .field-label {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .field-wrap { margin-bottom: 20px; }
+
+  input[type="password"], input[type="text"], input[type="url"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    border: none; cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn-primary {
+    background: var(--accent); color: #000;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-primary:hover { filter: brightness(1.1); }
+
+  .btn-sm {
+    padding: 7px 14px;
+    font-size: 11px;
+  }
+
+  .btn-danger  { background: rgba(255,68,85,.15); color: var(--danger); border: 1px solid rgba(255,68,85,.3); }
+  .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-blue    { background: rgba(0,119,255,.15); color: var(--accent2); border: 1px solid rgba(0,119,255,.3); }
+  .btn-green   { background: rgba(0,229,160,.15); color: var(--accent); border: 1px solid rgba(0,229,160,.3); }
+  .btn-warn    { background: rgba(255,170,0,.15); color: var(--warn); border: 1px solid rgba(255,170,0,.3); }
+
+  .btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  #login-error {
+    color: var(--danger);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 12px;
+    min-height: 18px;
+  }
+
+  /* ── Layout ── */
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(10,12,15,.9);
+    backdrop-filter: blur(12px);
+  }
+
+  .header-brand {
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  .brand-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .brand-name {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+  }
+
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+  }
+  .status-dot.online { background: var(--online); box-shadow: 0 0 8px var(--online); animation: pulse 2s infinite; }
+
+  @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:.5; } }
+
+  .main { display: flex; flex: 1; }
+
+  nav {
+    width: 200px; min-width: 200px;
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+
+  .nav-item {
+    padding: 10px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 10px;
+    border-left: 2px solid transparent;
+  }
+
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,.03); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,160,.05); }
+
+  .content {
+    flex: 1; padding: 32px;
+    overflow-y: auto;
+    max-height: calc(100vh - 60px);
+  }
+
+  /* ── Panels ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .panel-title {
+    font-size: 22px;
+    font-weight: 800;
+  }
+
+  .panel-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* ── Stats bar ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent);
+    opacity: .3;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+  }
+
+  .stat-value.green { color: var(--accent); }
+  .stat-value.blue  { color: var(--accent2); }
+  .stat-value.red   { color: var(--danger); }
+  .stat-value.warn  { color: var(--warn); }
+
+  /* ── Server cards ── */
+  .server-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .server-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 18px 22px;
+    display: flex; align-items: center; gap: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .server-card:hover { border-color: #2a3240; }
+
+  .server-status-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .server-status-dot.online  { background: var(--online); box-shadow: 0 0 6px var(--online); }
+  .server-status-dot.offline { background: var(--offline); }
+  .server-status-dot.unknown { background: var(--muted); }
+
+  .server-info { flex: 1; min-width: 0; }
+
+  .server-url {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .server-meta {
+    display: flex; gap: 16px; margin-top: 6px;
+  }
+
+  .server-meta-item {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  .server-meta-item span { color: var(--text); }
+
+  .add-server-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent2);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .form-row { display: flex; gap: 12px; align-items: flex-end; }
+  .form-row .field-wrap { flex: 1; margin-bottom: 0; }
+
+  /* ── Env editor ── */
+  .env-editor-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--warn);
+  }
+
+  .env-editor-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .env-editor-title {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  textarea.env-textarea {
+    width: 100%;
+    background: #080a0d;
+    border: none;
+    color: #a8d5b5;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 20px;
+    resize: vertical;
+    min-height: 420px;
+    outline: none;
+    display: block;
+  }
+
+  /* ── Logs ── */
+  .log-wrap {
+    background: #060809;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 18px 20px;
+    max-height: 600px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .log-wrap::-webkit-scrollbar { width: 6px; }
+  .log-wrap::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .log-line { padding: 1px 0; }
+  .log-line.error   { color: #ff6677; }
+  .log-line.warning { color: #ffcc55; }
+  .log-line.info    { color: #8899bb; }
+  .log-line.success { color: var(--accent); }
+
+  .log-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+
+  /* ── Toast ── */
+  #toast-container {
+    position: fixed; bottom: 28px; right: 28px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 999;
+  }
+
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    font-size: 13px;
+    min-width: 260px;
+    animation: slide-in 0.2s ease;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .toast.error  { border-left-color: var(--danger); }
+  .toast.warn   { border-left-color: var(--warn); }
+
+  @keyframes slide-in { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ── Misc ── */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .badge-green { background: rgba(0,229,160,.15); color: var(--accent); }
+  .badge-red   { background: rgba(255,68,85,.15);  color: var(--danger); }
+  .badge-muted { background: rgba(84,99,128,.15);  color: var(--muted); }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted); font-size: 13px;
+  }
+
+  .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: .4; }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">Torrent Hub</div>
+    <div class="login-title">管理面板</div>
+    <div class="field-wrap">
+      <label class="field-label">管理密钥 (ADMIN_SECRET)</label>
+      <input type="password" id="secret-input" placeholder="输入密钥..." autocomplete="off">
+    </div>
+    <div class="field-wrap" style="margin-bottom:8px">
+      <label class="field-label">服务地址</label>
+      <input type="text" id="base-url-input" placeholder="http://localhost:5000" value="">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">进入管理面板</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <div class="header-brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-name">Torrent Hub</div>
+    </div>
+    <div class="header-actions">
+      <span class="status-dot" id="hdr-dot"></span>
+      <span id="hdr-mode" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace"></span>
+      <button class="btn btn-ghost btn-sm" onclick="doReload()">⟳ 热重载</button>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">退出</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <nav>
+      <div class="nav-item active" onclick="switchTab('overview')" data-tab="overview">📊 概览</div>
+      <div class="nav-item" onclick="switchTab('servers')" data-tab="servers">🖥 服务器</div>
+      <div class="nav-item" onclick="switchTab('env')" data-tab="env">⚙️ 配置</div>
+      <div class="nav-item" onclick="switchTab('logs')" data-tab="logs">📋 日志</div>
+    </nav>
+
+    <div class="content">
+      <!-- Overview -->
+      <div class="panel active" id="panel-overview">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">系统概览</div>
+            <div class="panel-subtitle">实时状态监控</div>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="probeServers()"><span id="probe-spinner"></span>探测服务器</button>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">服务器总数</div>
+            <div class="stat-value blue" id="stat-total">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">在线</div>
+            <div class="stat-value green" id="stat-online">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">下线</div>
+            <div class="stat-value red" id="stat-offline">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">选择策略</div>
+            <div class="stat-value" id="stat-strategy" style="font-size:18px">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">运行时间</div>
+            <div class="stat-value blue" id="stat-uptime" style="font-size:18px">—</div>
+          </div>
+        </div>
+
+        <div id="overview-server-list" class="server-list"></div>
+      </div>
+
+      <!-- Servers -->
+      <div class="panel" id="panel-servers">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">服务器管理</div>
+            <div class="panel-subtitle" id="servers-subtitle">添加或删除推送目标</div>
+          </div>
+        </div>
+
+        <!-- VT 模式表单 -->
+        <div class="add-server-form" id="form-vt" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">添加 VT 代理</span>
+            <span class="badge badge-green">VT Proxy 模式</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:14px">
+            只需输入 Proxy ID，完整地址由系统自动拼接：<br>
+            <span style="color:var(--accent2)" id="vt-url-preview-hint"></span>
+          </div>
+          <div class="form-row">
+            <div class="field-wrap" style="flex:1">
+              <label class="field-label">Proxy ID</label>
+              <input type="text" id="new-proxy-id" placeholder="例如：d85456e1" autocomplete="off"
+                oninput="updateVtPreview()">
+            </div>
+            <div class="field-wrap" style="flex:2">
+              <label class="field-label">拼接后地址（预览）</label>
+              <input type="text" id="vt-url-preview" readonly
+                style="background:#060809;color:var(--muted);cursor:default"
+                placeholder="输入 Proxy ID 后自动显示...">
+            </div>
+            <div style="padding-bottom:0">
+              <button class="btn btn-green" onclick="addServer()">＋ 添加</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- QB 模式表单 -->
+        <div class="add-server-form" id="form-qb" style="display:none;border-top-color:var(--accent2)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">添加 qBittorrent 服务器</span>
+            <span class="badge badge-muted">QB 模式</span>
+          </div>
+          <div class="form-row">
+            <div class="field-wrap" style="flex:2">
+              <label class="field-label">服务器地址</label>
+              <input type="url" id="new-url" placeholder="http://192.168.1.100:8080">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">用户名</label>
+              <input type="text" id="new-user" placeholder="admin">
+            </div>
+            <div class="field-wrap">
+              <label class="field-label">密码</label>
+              <input type="password" id="new-pass" placeholder="••••••">
+            </div>
+            <div style="padding-bottom:0">
+              <button class="btn btn-blue" onclick="addServer()">＋ 添加</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="server-manage-list" class="server-list"></div>
+      </div>
+
+      <!-- Env -->
+      <div class="panel" id="panel-env">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">环境配置</div>
+            <div class="panel-subtitle">.env 文件 · 保存后自动热重载</div>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.2);padding:12px 16px;margin-bottom:16px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--warn)">
+          ⚠ 注意：修改配置后将立即热重载生效，请确认内容正确后再保存
+        </div>
+
+        <div class="env-editor-wrap">
+          <div class="env-editor-header">
+            <span class="env-editor-title">.env</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="loadEnv()">↺ 刷新</button>
+              <button class="btn btn-warn btn-sm" onclick="saveEnv()">💾 保存并重载</button>
+            </div>
+          </div>
+          <textarea class="env-textarea" id="env-content" spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <!-- Logs -->
+      <div class="panel" id="panel-logs">
+        <div class="log-header">
+          <div>
+            <div class="panel-title">运行日志</div>
+            <div class="panel-subtitle">torrent_webhook.log</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label class="field-label" style="margin:0">行数</label>
+            <select id="log-lines" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none">
+              <option value="100">最近 100 行</option>
+              <option value="200" selected>最近 200 行</option>
+              <option value="500">最近 500 行</option>
+            </select>
+            <button class="btn btn-blue btn-sm" onclick="loadLogs()">↺ 刷新</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleAutoRefresh()"><span id="auto-refresh-label">▶ 自动刷新</span></button>
+          </div>
+        </div>
+
+        <div class="log-wrap" id="log-output"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+let SECRET = '';
+let BASE_URL = '';
+let autoRefreshTimer = null;
+let autoRefreshOn = false;
+let currentMode = 'qb';   // 'vt' | 'qb'
+let vtBaseUrl   = '';      // VTURL 值，用于预览拼接
+
+// ── Login ────────────────────────────────────────────────────────────────────
+function doLogin() {
+  SECRET   = document.getElementById('secret-input').value.trim();
+  BASE_URL = (document.getElementById('base-url-input').value.trim() || window.location.origin).replace(/\/$/, '');
+  document.getElementById('login-error').textContent = '';
+
+  apiFetch('/admin/status')
+    .then(data => {
+      document.getElementById('login-overlay').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      applyStatus(data);
+      loadOverview();
+    })
+    .catch(() => {
+      document.getElementById('login-error').textContent = '密钥错误或服务不可达';
+    });
+}
+
+document.getElementById('secret-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function logout() {
+  SECRET = ''; BASE_URL = '';
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ── API ──────────────────────────────────────────────────────────────────────
+function apiFetch(path, opts = {}) {
+  const url = BASE_URL + path + (path.includes('?') ? '&' : '?') + 'secret=' + encodeURIComponent(SECRET);
+  return fetch(url, {
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': SECRET },
+    ...opts
+  }).then(r => {
+    if (r.status === 401) throw new Error('Unauthorized');
+    return r.json();
+  });
+}
+
+// ── Nav ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(el => el.classList.toggle('active', el.id === 'panel-' + name));
+  if (name === 'overview')  loadOverview();
+  if (name === 'servers')   loadServerList();
+  if (name === 'env')       loadEnv();
+  if (name === 'logs')      loadLogs();
+  if (name !== 'logs' && autoRefreshOn) stopAutoRefresh();
+}
+
+// ── Overview ─────────────────────────────────────────────────────────────────
+function loadOverview() {
+  apiFetch('/admin/status').then(applyStatus);
+  apiFetch('/admin/servers').then(data => {
+    renderOverviewCards(data.servers || [], data.mode);
+    const online  = (data.servers || []).filter(s => s.available).length;
+    const offline = (data.servers || []).filter(s => !s.available).length;
+    document.getElementById('stat-total').textContent   = (data.servers || []).length;
+    document.getElementById('stat-online').textContent  = online;
+    document.getElementById('stat-offline').textContent = offline;
+  });
+}
+
+function applyStatus(data) {
+  document.getElementById('hdr-dot').className = 'status-dot online';
+  currentMode = data.mode || 'qb';
+  vtBaseUrl   = data.vt_url || '';
+  document.getElementById('hdr-mode').textContent = currentMode === 'vt' ? 'VT Proxy' : 'qBittorrent';
+  document.getElementById('stat-strategy').textContent = data.strategy || '—';
+  document.getElementById('stat-uptime').textContent = data.uptime || '—';
+}
+
+function probeServers() {
+  const spinner = document.getElementById('probe-spinner');
+  spinner.innerHTML = '<span class="spinner"></span> ';
+  apiFetch('/admin/probe', { method: 'POST' })
+    .then(data => {
+      spinner.innerHTML = '';
+      showToast(`探测完成：${data.online} 在线 / ${data.offline} 下线`, 'success');
+      document.getElementById('stat-total').textContent   = data.total;
+      document.getElementById('stat-online').textContent  = data.online;
+      document.getElementById('stat-offline').textContent = data.offline;
+      renderOverviewCards(data.servers || [], currentMode);
+    })
+    .catch(() => { spinner.innerHTML = ''; showToast('探测失败', 'error'); });
+}
+
+function renderOverviewCards(servers, mode) {
+  const wrap = document.getElementById('overview-server-list');
+  if (!servers.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">🖥</div>暂无服务器</div>';
+    return;
+  }
+  wrap.innerHTML = servers.map(s => {
+    const dotClass = s.available === true ? 'online' : s.available === false ? 'offline' : 'unknown';
+    const badge = s.available === true
+      ? '<span class="badge badge-green">在线</span>'
+      : s.available === false
+      ? '<span class="badge badge-red">下线</span>'
+      : '<span class="badge badge-muted">未探测</span>';
+
+    const upload = s.upload_speed  != null ? (s.upload_speed / 1024 / 1024).toFixed(2) + ' MB/s' : '—';
+    const count  = s.torrent_count != null ? s.torrent_count + ' 个' : '—';
+    const space  = s.free_space    != null ? (s.free_space / 1024 / 1024 / 1024).toFixed(1) + ' GB' : '—';
+
+    // 主显示：VT 模式优先显示 proxy_id，副标题显示完整 URL
+    const mainLabel = (mode === 'vt' && s.proxy_id)
+      ? `<span style="color:var(--accent);font-weight:700">${escHtml(s.proxy_id)}</span>`
+      : escHtml(s.url);
+    const subLabel = (mode === 'vt' && s.proxy_id)
+      ? `<div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px">${escHtml(s.url)}</div>`
+      : '';
+
+    return `
+      <div class="server-card">
+        <div class="server-status-dot ${dotClass}"></div>
+        <div class="server-info">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="server-url">${mainLabel}</div>
+            ${badge}
+          </div>
+          ${subLabel}
+          <div class="server-meta">
+            <div class="server-meta-item">⬆ <span>${upload}</span></div>
+            <div class="server-meta-item">📦 <span>${count}</span></div>
+            <div class="server-meta-item">💾 <span>${space}</span></div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Servers ──────────────────────────────────────────────────────────────────
+function loadServerList() {
+  apiFetch('/admin/servers').then(data => {
+    const mode    = data.mode || 'qb';
+    const servers = data.servers || [];
+    currentMode   = mode;
+
+    // 根据模式切换表单
+    document.getElementById('form-vt').style.display = mode === 'vt' ? 'block' : 'none';
+    document.getElementById('form-qb').style.display = mode === 'qb' ? 'block' : 'none';
+    document.getElementById('servers-subtitle').textContent =
+      mode === 'vt' ? 'Vertex Proxy 模式 · 输入 Proxy ID 即可' : 'qBittorrent 模式 · 输入完整地址';
+
+    if (mode === 'vt') {
+      document.getElementById('vt-url-preview-hint').textContent =
+        (vtBaseUrl || '<VTURL>') + '/proxy/client/<Proxy ID>';
+    }
+
+    const wrap = document.getElementById('server-manage-list');
+    if (!servers.length) {
+      wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">🖥</div>暂无服务器，请在上方添加</div>';
+      return;
+    }
+
+    wrap.innerHTML = servers.map(s => {
+      const dotClass  = s.available === true ? 'online' : s.available === false ? 'offline' : 'unknown';
+      const deleteKey = mode === 'vt' ? (s.proxy_id || s.url) : s.url;
+
+      const mainLabel = (mode === 'vt' && s.proxy_id)
+        ? `<span style="color:var(--accent);font-weight:700;font-size:15px">${escHtml(s.proxy_id)}</span>`
+        : `<span class="server-url">${escHtml(s.url)}</span>`;
+      const subLabel = (mode === 'vt' && s.proxy_id)
+        ? `<div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:4px">${escHtml(s.url)}</div>`
+        : '';
+
+      return `
+        <div class="server-card">
+          <div class="server-status-dot ${dotClass}"></div>
+          <div class="server-info">
+            ${mainLabel}
+            ${subLabel}
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="removeServer(${JSON.stringify(deleteKey)})">✕ 删除</button>
+        </div>`;
+    }).join('');
+  });
+}
+
+function updateVtPreview() {
+  const pid = document.getElementById('new-proxy-id').value.trim();
+  const base = vtBaseUrl || '(VTURL)';
+  document.getElementById('vt-url-preview').value = pid
+    ? `${base.replace(/\/$/, '')}/proxy/client/${pid}`
+    : '';
+}
+
+function addServer() {
+  if (currentMode === 'vt') {
+    const pid = document.getElementById('new-proxy-id').value.trim();
+    if (!pid) { showToast('请填写 Proxy ID', 'error'); return; }
+    apiFetch('/admin/servers', {
+      method: 'POST',
+      body: JSON.stringify({ identifier: pid })
+    }).then(data => {
+      if (data.status === 'added') {
+        showToast(`✓ 已添加代理 ${pid}`, 'success');
+        document.getElementById('new-proxy-id').value = '';
+        document.getElementById('vt-url-preview').value = '';
+        loadServerList();
+      } else {
+        showToast('该 Proxy ID 已存在', 'warn');
+      }
+    }).catch(() => showToast('添加失败', 'error'));
+  } else {
+    const url  = document.getElementById('new-url').value.trim();
+    const user = document.getElementById('new-user').value.trim();
+    const pass = document.getElementById('new-pass').value;
+    if (!url) { showToast('请填写服务器地址', 'error'); return; }
+    apiFetch('/admin/servers', {
+      method: 'POST',
+      body: JSON.stringify({ identifier: url, username: user, password: pass })
+    }).then(data => {
+      if (data.status === 'added') {
+        showToast(`✓ 已添加 ${url}`, 'success');
+        document.getElementById('new-url').value = '';
+        document.getElementById('new-user').value = '';
+        document.getElementById('new-pass').value = '';
+        loadServerList();
+      } else {
+        showToast('服务器已存在', 'warn');
+      }
+    }).catch(() => showToast('添加失败', 'error'));
+  }
+}
+
+function removeServer(identifier) {
+  const label = currentMode === 'vt' ? `Proxy ID: ${identifier}` : identifier;
+  if (!confirm(`确认删除？\n${label}`)) return;
+  apiFetch('/admin/servers', {
+    method: 'DELETE',
+    body: JSON.stringify({ identifier })
+  }).then(() => {
+    showToast(`已删除 ${identifier}`, 'success');
+    loadServerList();
+  }).catch(() => showToast('删除失败', 'error'));
+}
+
+// ── Env ──────────────────────────────────────────────────────────────────────
+function loadEnv() {
+  apiFetch('/admin/env').then(data => {
+    document.getElementById('env-content').value = data.content || '';
+  }).catch(() => showToast('读取配置失败', 'error'));
+}
+
+function saveEnv() {
+  const content = document.getElementById('env-content').value;
+  apiFetch('/admin/env', {
+    method: 'POST',
+    body: JSON.stringify({ content })
+  }).then(() => {
+    showToast('✓ 配置已保存并热重载', 'success');
+    loadOverview();
+  }).catch(() => showToast('保存失败', 'error'));
+}
+
+// ── Reload ───────────────────────────────────────────────────────────────────
+function doReload() {
+  apiFetch('/admin/reload', { method: 'POST' })
+    .then(data => {
+      showToast(`✓ 热重载完成，${data.servers} 台服务器`, 'success');
+      loadOverview();
+    })
+    .catch(() => showToast('热重载失败', 'error'));
+}
+
+// ── Logs ─────────────────────────────────────────────────────────────────────
+function loadLogs() {
+  const n = document.getElementById('log-lines').value;
+  apiFetch(`/admin/logs?lines=${n}`).then(data => {
+    const out = document.getElementById('log-output');
+    const lines = data.lines || [];
+    out.innerHTML = lines.map(line => {
+      const l = line.trimEnd();
+      let cls = 'info';
+      if (/ERROR|✗|失败|异常|放弃/.test(l))         cls = 'error';
+      else if (/WARNING|WARN|下线|超时|跳过/.test(l)) cls = 'warning';
+      else if (/✓|成功|在线|完成|重载/.test(l))        cls = 'success';
+      return `<div class="log-line ${cls}">${escHtml(l)}</div>`;
+    }).join('');
+    out.scrollTop = out.scrollHeight;
+  }).catch(() => showToast('获取日志失败', 'error'));
+}
+
+function toggleAutoRefresh() {
+  autoRefreshOn = !autoRefreshOn;
+  document.getElementById('auto-refresh-label').textContent = autoRefreshOn ? '⏸ 停止刷新' : '▶ 自动刷新';
+  if (autoRefreshOn) {
+    loadLogs();
+    autoRefreshTimer = setInterval(loadLogs, 3000);
+  } else {
+    stopAutoRefresh();
+  }
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshOn = false;
+  document.getElementById('auto-refresh-label').textContent = '▶ 自动刷新';
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type === 'error' ? ' error' : type === 'warn' ? ' warn' : '');
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+// Pre-fill base URL from current location
+document.getElementById('base-url-input').value = window.location.origin;
+</script>
+</body>
+</html>

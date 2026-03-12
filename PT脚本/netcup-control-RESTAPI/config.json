@@ -1,0 +1,27 @@
+{
+  "webhook_path": "/webhook/xxxxxxxxxxxxxsecret-key",
+  "port": 56666,
+  "rest_accounts": [
+  {
+    "account_id": "246583",
+    "access_token": "",
+    "refresh_token": ""
+  }
+],
+  "vertex": {
+    "base_url": "",
+    "cookie": "",
+    "username": "admin",
+    "password": "",
+    "cookie_check_interval": 300
+  },
+  "telegram": {
+    "bot_token": "",
+    "chat_id": ""
+  },
+  "throttle_action": {
+    "strategy": "pause_resume",     
+    "delete_files": true,
+    "exclude_categories": "ssd-返还"
+  }
+}

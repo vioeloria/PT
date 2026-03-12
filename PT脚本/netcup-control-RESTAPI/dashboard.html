@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netcup 流量监控面板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            margin-bottom: 30px;
+            animation: slideDown 0.5s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-size: 36px;
+            color: #333;
+            margin-bottom: 25px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .view-switcher {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .view-btn {
+            padding: 12px 24px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .view-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .view-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .stat-card .value {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-card .subvalue {
+            font-size: 18px;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 5px 20px rgba(245, 87, 108, 0.3);
+        }
+
+        .stat-card.success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 5px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .stat-card.availability {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            box-shadow: 0 5px 20px rgba(56, 239, 125, 0.3);
+        }
+
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+            gap: 25px;
+            animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .server-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .server-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+
+        .server-card.throttled {
+            border-color: #f5576c;
+            background: linear-gradient(to bottom, #fff 0%, #fff5f7 100%);
+        }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #f0f0f0;
+        }
+
+        .server-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .server-title .name {
+            font-size: 22px;
+        }
+
+        .server-title .ip {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .server-title .account {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 600;
+            background: #f0f4ff;
+            padding: 4px 12px;
+            border-radius: 8px;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .badge {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge.throttled {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .badge.normal {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            box-shadow: 0 4px 15px rgba(56, 239, 125, 0.4);
+        }
+
+        .throttle-status {
+            background: linear-gradient(135deg, #fff5f7 0%, #ffe8ec 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f5576c;
+        }
+
+        .throttle-status.normal {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left-color: #38ef7d;
+        }
+
+        .throttle-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .throttle-stat-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .throttle-stat-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 5px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .throttle-stat-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #333;
+        }
+
+        .throttle-stat-value.large {
+            font-size: 28px;
+            color: #f5576c;
+        }
+
+        .throttle-stat-value.normal {
+            color: #38ef7d;
+        }
+
+        .server-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            background: linear-gradient(135deg, #f9fafb 0%, #f0f4f8 100%);
+            padding: 18px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .info-item:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .info-item:hover .info-label {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .info-item:hover .info-value {
+            color: white;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .servers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .server-list-item {
+            background: white;
+            border-radius: 15px;
+            padding: 25px 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border-left: 5px solid #667eea;
+            display: grid;
+            grid-template-columns: 280px 1fr auto;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .server-list-item:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            transform: translateX(5px);
+        }
+
+        .server-list-item.throttled {
+            border-left-color: #f5576c;
+            background: linear-gradient(to right, #fff5f7 0%, #fff 100%);
+        }
+
+        .list-server-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .list-server-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .list-server-ip {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .list-server-account {
+            font-size: 11px;
+            color: #667eea;
+            font-weight: 600;
+            background: #f0f4ff;
+            padding: 3px 10px;
+            border-radius: 6px;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .list-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .list-stat {
+            text-align: center;
+        }
+
+        .list-stat-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .list-stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .list-status-badge {
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .list-status-badge.throttled {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .list-status-badge.normal {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .servers-compact {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 15px;
+        }
+
+        .server-compact-item {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border-left: 4px solid #667eea;
+        }
+
+        .server-compact-item:hover {
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+            transform: translateY(-3px);
+        }
+
+        .server-compact-item.throttled {
+            border-left-color: #f5576c;
+        }
+
+        .compact-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .compact-title-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .compact-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .compact-account {
+            font-size: 10px;
+            color: #667eea;
+            font-weight: 600;
+            background: #f0f4ff;
+            padding: 2px 8px;
+            border-radius: 6px;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .compact-badge {
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .compact-badge.throttled {
+            background: #f5576c;
+        }
+
+        .compact-badge.normal {
+            background: #38ef7d;
+        }
+
+        .compact-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .compact-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #f9fafb;
+            border-radius: 6px;
+        }
+
+        .compact-stat-label {
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .compact-stat-value {
+            font-weight: 700;
+            color: #333;
+        }
+
+        .servers-table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        .servers-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .servers-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .servers-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .servers-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .servers-table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .servers-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .servers-table tbody tr.throttled {
+            background: #fff5f7;
+        }
+
+        .table-status {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            display: inline-block;
+        }
+
+        .table-status.throttled {
+            background: #f5576c;
+        }
+
+        .table-status.normal {
+            background: #38ef7d;
+        }
+
+        .table-account-badge {
+            font-size: 11px;
+            color: #667eea;
+            font-weight: 600;
+            background: #f0f4ff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            animation: pulse 1.5s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .last-update {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            font-size: 16px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .servers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .servers-compact {
+                grid-template-columns: 1fr;
+            }
+
+            .server-list-item {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .list-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .view-switcher {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ Netcup 流量监控面板</h1>
+            
+            <div class="view-switcher">
+                <button class="view-btn active" onclick="switchView('card')">🎴 卡片视图</button>
+                <button class="view-btn" onclick="switchView('list')">📋 列表视图</button>
+                <button class="view-btn" onclick="switchView('compact')">📦 紧凑视图</button>
+                <button class="view-btn" onclick="switchView('table')">📊 表格视图</button>
+            </div>
+            
+            <div class="view-switcher" style="margin-top: 15px;">
+                <button class="view-btn" onclick="sortServers('default')">🔄 默认排序</button>
+                <button class="view-btn" onclick="sortServers('traffic')">📊 总流量</button>
+                <button class="view-btn" onclick="sortServers('upload')">⬆️ 上传流量</button>
+                <button class="view-btn" onclick="sortServers('download')">⬇️ 下载流量</button>
+                <button class="view-btn" onclick="sortServers('throttle')">🔴 限速次数</button>
+                <button class="view-btn" onclick="sortServers('status')">⚠️ 限速状态</button>
+            </div>
+
+            <div id="stats" class="stats"></div>
+        </div>
+        <div id="servers"></div>
+        <div id="loading" class="loading">⏳ 正在加载数据...</div>
+        <div class="last-update" id="lastUpdate"></div>
+    </div>
+    
+    <button class="refresh-btn" onclick="fetchData()">🔄 刷新数据</button>
+
+    <script>
+        const API_URL = '/api/status';
+        const REFRESH_INTERVAL = 10000;
+        let currentData = null;
+        let currentView = 'card';
+        let currentSort = 'default';
+        let sortedServers = [];
+
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL);
+                const result = await response.json();
+                if (result.success) {
+                    currentData = result.data;
+                    updateView();
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function formatTraffic(tib) {
+            if (tib >= 1) {
+                return `${tib.toFixed(3)} TiB`;
+            } else {
+                return `${(tib * 1024).toFixed(2)} GiB`;
+            }
+        }
+
+        function switchView(view) {
+            currentView = view;
+            
+            document.querySelectorAll('.view-switcher')[0].querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            updateView();
+        }
+        
+        function sortServers(sortType) {
+            currentSort = sortType;
+            
+            document.querySelectorAll('.view-switcher')[1].querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (!currentData || !currentData.servers) return;
+            
+            sortedServers = [...currentData.servers];
+            
+            switch(sortType) {
+                case 'traffic':
+                    sortedServers.sort((a, b) => b.traffic_tib - a.traffic_tib);
+                    break;
+                case 'upload':
+                    sortedServers.sort((a, b) => b.tx_tib - a.tx_tib);
+                    break;
+                case 'download':
+                    sortedServers.sort((a, b) => b.rx_tib - a.rx_tib);
+                    break;
+                case 'throttle':
+                    sortedServers.sort((a, b) => b.throttle_count - a.throttle_count);
+                    break;
+                case 'status':
+                    sortedServers.sort((a, b) => {
+                        if (a.trafficThrottled && !b.trafficThrottled) return -1;
+                        if (!a.trafficThrottled && b.trafficThrottled) return 1;
+                        return 0;
+                    });
+                    break;
+                default:
+                    break;
+            }
+            
+            updateView();
+        }
+
+        function updateView() {
+            if (!currentData) return;
+            
+            if (sortedServers.length === 0) {
+                sortedServers = [...currentData.servers];
+            }
+
+            const totalServers = currentData.total_servers;
+            const normalCount = currentData.normal_count;
+            const availabilityRate = totalServers > 0 
+                ? ((normalCount / totalServers) * 100).toFixed(2) 
+                : 100;
+
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card">
+                    <h3>📊 总服务器</h3>
+                    <div class="value">${totalServers}</div>
+                </div>
+                <div class="stat-card availability">
+                    <h3>✅ 整体可用率</h3>
+                    <div class="value">${availabilityRate}%</div>
+                    <div class="subvalue">${normalCount} / ${totalServers} 在线</div>
+                </div>
+                <div class="stat-card warning">
+                    <h3>🔴 限速中</h3>
+                    <div class="value">${currentData.throttled_count}</div>
+                </div>
+                <div class="stat-card success">
+                    <h3>🟢 正常运行</h3>
+                    <div class="value">${normalCount}</div>
+                </div>
+            `;
+
+            const serversContainer = document.getElementById('servers');
+            
+            if (currentView === 'card') {
+                serversContainer.className = 'servers-grid';
+                serversContainer.innerHTML = renderCardView();
+            } else if (currentView === 'list') {
+                serversContainer.className = 'servers-list';
+                serversContainer.innerHTML = renderListView();
+            } else if (currentView === 'compact') {
+                serversContainer.className = 'servers-compact';
+                serversContainer.innerHTML = renderCompactView();
+            } else if (currentView === 'table') {
+                serversContainer.className = '';
+                serversContainer.innerHTML = renderTableView();
+            }
+
+            document.getElementById('lastUpdate').textContent = `📅 最后更新: ${currentData.last_update}`;
+        }
+
+        function renderCardView() {
+            return sortedServers.map(s => {
+                const isThrottled = s.trafficThrottled;
+                
+                return `
+                <div class="server-card ${isThrottled ? 'throttled' : ''}">
+                    <div class="server-header">
+                        <div class="server-title">
+                            <div class="name">${s.server_name}</div>
+                            <div class="ip">${s.ipv4IP}</div>
+                            <div class="account">📋 ${s.account_id}</div>
+                        </div>
+                        <span class="badge ${isThrottled ? 'throttled' : 'normal'}">
+                            ${isThrottled ? '🔴 限速中' : '🟢 正常'}
+                        </span>
+                    </div>
+                    
+                    <div class="throttle-status ${isThrottled ? '' : 'normal'}">
+                        <div class="throttle-stats">
+                            <div class="throttle-stat-item">
+                                <div class="throttle-stat-label">${isThrottled ? '当前已限速' : '累计限速时长'}</div>
+                                <div class="throttle-stat-value ${isThrottled ? 'large' : ''}">
+                                    ${isThrottled ? s.current_throttle_duration : s.total_throttled_time}
+                                </div>
+                            </div>
+                            <div class="throttle-stat-item">
+                                <div class="throttle-stat-label">限速次数</div>
+                                <div class="throttle-stat-value">${s.throttle_count} 次</div>
+                            </div>
+                            ${s.last_throttle_time ? `
+                            <div class="throttle-stat-item">
+                                <div class="throttle-stat-label">上次限速</div>
+                                <div class="throttle-stat-value" style="font-size: 12px;">${s.last_throttle_time}</div>
+                            </div>
+                            ` : ''}
+                            ${s.last_unthrottle_time ? `
+                            <div class="throttle-stat-item">
+                                <div class="throttle-stat-label">解除限速</div>
+                                <div class="throttle-stat-value" style="font-size: 12px;">${s.last_unthrottle_time}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="server-info">
+                        <div class="info-item">
+                            <div class="info-label">💾 总流量</div>
+                            <div class="info-value">${formatTraffic(s.traffic_tib)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">⬆️ 上传</div>
+                            <div class="info-value">${formatTraffic(s.tx_tib)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">⬇️ 下载</div>
+                            <div class="info-value">${formatTraffic(s.rx_tib)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">🔄 状态</div>
+                            <div class="info-value">${s.status}</div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function renderListView() {
+            return sortedServers.map(s => {
+                const isThrottled = s.trafficThrottled;
+                
+                return `
+                <div class="server-list-item ${isThrottled ? 'throttled' : ''}">
+                    <div class="list-server-info">
+                        <div class="list-server-name">${s.server_name}</div>
+                        <div class="list-server-ip">📍 ${s.ipv4IP}</div>
+                        <div class="list-server-account">📋 ${s.account_id}</div>
+                    </div>
+                    
+                    <div class="list-stats-grid">
+                        <div class="list-stat">
+                            <div class="list-stat-label">总流量</div>
+                            <div class="list-stat-value">${formatTraffic(s.traffic_tib)}</div>
+                        </div>
+                        <div class="list-stat">
+                            <div class="list-stat-label">限速次数</div>
+                            <div class="list-stat-value">${s.throttle_count} 次</div>
+                        </div>
+                        <div class="list-stat">
+                            <div class="list-stat-label">${isThrottled ? '当前限速' : '累计限速'}</div>
+                            <div class="list-stat-value">${isThrottled ? s.current_throttle_duration : s.total_throttled_time}</div>
+                        </div>
+                        <div class="list-stat">
+                            <div class="list-stat-label">状态</div>
+                            <div class="list-stat-value">${s.status}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="list-status-badge ${isThrottled ? 'throttled' : 'normal'}">
+                        ${isThrottled ? '🔴 限速中' : '🟢 正常'}
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function renderCompactView() {
+            return sortedServers.map(s => {
+                const isThrottled = s.trafficThrottled;
+                
+                return `
+                <div class="server-compact-item ${isThrottled ? 'throttled' : ''}">
+                    <div class="compact-header">
+                        <div class="compact-title-wrapper">
+                            <div class="compact-title">${s.server_name}</div>
+                            <div class="compact-account">📋 ${s.account_id}</div>
+                        </div>
+                        <span class="compact-badge ${isThrottled ? 'throttled' : 'normal'}">
+                            ${isThrottled ? '限速' : '正常'}
+                        </span>
+                    </div>
+                    
+                    <div class="compact-stats">
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">IP</span>
+                            <span class="compact-stat-value">${s.ipv4IP}</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">总流量</span>
+                            <span class="compact-stat-value">${formatTraffic(s.traffic_tib)}</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">限速次数</span>
+                            <span class="compact-stat-value">${s.throttle_count} 次</span>
+                        </div>
+                        <div class="compact-stat">
+                            <span class="compact-stat-label">${isThrottled ? '当前限速' : '累计限速'}</span>
+                            <span class="compact-stat-value">${isThrottled ? s.current_throttle_duration : s.total_throttled_time}</span>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function renderTableView() {
+            const rows = sortedServers.map(s => {
+                const isThrottled = s.trafficThrottled;
+                
+                return `
+                <tr class="${isThrottled ? 'throttled' : ''}">
+                    <td>
+                        <strong>${s.server_name}</strong><br>
+                        <small style="color: #6b7280;">${s.ipv4IP}</small><br>
+                        <span class="table-account-badge">📋 ${s.account_id}</span>
+                    </td>
+                    <td><span class="table-status ${isThrottled ? 'throttled' : 'normal'}">${isThrottled ? '🔴 限速中' : '🟢 正常'}</span></td>
+                    <td>${formatTraffic(s.traffic_tib)}</td>
+                    <td>${formatTraffic(s.tx_tib)}</td>
+                    <td>${formatTraffic(s.rx_tib)}</td>
+                    <td>${s.throttle_count} 次</td>
+                    <td>${isThrottled ? s.current_throttle_duration : s.total_throttled_time}</td>
+                    <td>${s.last_throttle_time || '-'}</td>
+                    <td>${s.status}</td>
+                </tr>
+            `}).join('');
+            
+            return `
+                <div class="servers-table-container">
+                    <table class="servers-table">
+                        <thead>
+                            <tr>
+                                <th>服务器</th>
+                                <th>状态</th>
+                                <th>总流量</th>
+                                <th>上传</th>
+                                <th>下载</th>
+                                <th>限速次数</th>
+                                <th>限速时长</th>
+                                <th>上次限速</th>
+                                <th>运行状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        fetchData();
+        setInterval(fetchData, REFRESH_INTERVAL);
+    </script>
+</body>
+</html>
