@@ -1,0 +1,144 @@
+# Hostdzire Traffic Monitor
+
+监控 hostdzire.com 上的 VPS 流量使用情况，定时推送报告到 Telegram。超出阈值后自动清理 qBittorrent 种子并通过 Vertex 禁用对应下载器。支持配置文件热重载，无需重启服务。
+
+---
+
+## 功能概览
+
+- **定时推送**：按配置间隔将所有账号的流量状态推送到 Telegram
+- **双类型支持**：lswVPS（Leaseweb 分销机器）和 AVM（自营机房）
+- **超阈值自动处理**：
+  1. 通过 Vertex 代理连接 qBittorrent，暂停 → Reannounce → 删除所有种子（含文件）
+  2. 通过 Vertex API 禁用对应下载器
+  3. 推送详细操作结果到 Telegram
+- **自动恢复**：流量恢复正常后自动重新启用被禁用的下载器
+- **配置热重载**：修改 `config.yaml` 后立即生效，无需重启
+
+---
+
+## 文件结构
+
+```
+├── traffic_monitor.py     # 主程序
+├── config_loader.py       # 热重载配置单例（需自行实现）
+├── vertex_cookie.py       # Vertex Cookie 自动刷新模块
+├── config.yaml            # 配置文件
+└── cookies/               # 各账号 Cookie 文件目录（默认）
+```
+
+---
+
+## 快速开始
+
+**1. 安装依赖**
+```bash
+pip install requests python-telegram-bot
+```
+> 定时任务时区支持可选安装 `pytz`
+
+**2. 配置 `config.yaml`**
+
+```yaml
+# Telegram
+tg_bot_token: "your-bot-token"
+target_chat_ids:
+  - 123456789
+
+# 推送间隔（秒，默认 1800 = 30分钟）
+push_interval: 1800
+
+# 全局流量告警阈值（TB），超过后触发警告通知
+traffic_threshold_tb: 20.0
+
+# Cookie 文件目录
+cookie_dir: "cookies"
+
+# Vertex 配置（用于代理 qBittorrent 和管理下载器）
+vertex_login_url: "http://your-vertex-host:3077"
+vertex_username: "admin"
+vertex_password: "your-password"
+
+# qBittorrent 操作参数
+qb_timeout: 30
+qb_announce_wait_seconds: 10
+
+# 账号 → 产品列表映射
+account_products:
+  account_a:
+    - id: 12345
+      type: lsw        # Leaseweb 分销机器
+  account_b:
+    - id: 67890
+      type: avm        # 自营机房
+
+# 各账号流量阈值（TB），不填则使用 traffic_threshold_tb
+traffic_thresholds_tb:
+  account_a: 25.0
+  account_b: 50.0
+
+# 账号 → Vertex 下载器 IP 映射（用于定位和禁用对应下载器）
+account_vertex_ip_map:
+  account_a:
+    - "1.2.3.4"
+  account_b:
+    - "5.6.7.8"
+
+# 可选：手动指定 qB 代理地址（不填则自动从 Vertex 查找）
+account_qb_override:
+  account_a: "http://your-vertex-host:3077/proxy/client/abc123/"
+```
+
+**3. 放置 Cookie 文件**
+
+每个账号对应一个 Cookie 文件，存放在 `cookie_dir` 目录下，格式为标准 Cookie 字符串(F12直接复制)：
+```
+Cookie: session=xxx; token=yyy; ...
+```
+
+**4. 启动**
+```bash
+python traffic_monitor.py
+```
+
+---
+
+## 超阈值处理流程
+
+```
+检测到账号流量超阈值
+  ↓
+1. 在 Vertex 下载器列表中按 IP 找到对应 qBittorrent 代理地址
+  ↓
+2. 通过代理连接 qBittorrent：
+     暂停所有种子 → Reannounce（向 Tracker 汇报停止）→ 等待 → 删除含文件
+  ↓
+3. 调用 Vertex API 禁用该 IP 对应的下载器
+  ↓
+4. 推送详细操作结果到 Telegram
+```
+
+未超阈值时，若该账号的下载器处于禁用状态，会自动重新启用。
+
+---
+
+## Telegram 通知内容
+
+每次推送包含以下信息：
+
+**LSW 机器**：IP（部分遮罩）、Null Route 状态、CPU/内存/硬盘、数据中心、本月上下行流量、出站阈值进度条、合同到期时间
+
+**AVM 机器**：IP（部分遮罩）、电源/服务状态、CPU/内存/硬盘、数据中心、当前周期已用流量、双向阈值进度条、历史流量记录
+
+超阈值时额外包含：qBittorrent 清理操作详情（种子数、暂停/汇报/删除结果）和 Vertex 下载器禁用结果。
+
+---
+
+## 依赖说明
+
+| 模块 | 用途 |
+|------|------|
+| `requests` | HTTP 请求 |
+| `python-telegram-bot` | Telegram Bot 推送 |
+| `config_loader.py` | 热重载配置（需自行实现） |
+| `vertex_cookie.py` | Vertex Cookie 自动刷新（同目录） |
