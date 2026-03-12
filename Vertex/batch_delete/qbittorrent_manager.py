@@ -21,15 +21,15 @@ from vertex_cookie import VertexCookieManager
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ── 模式 1：qB 直连 ──────────────────────────────────────────────────────────
-QB_HOST     = "http://192.227.220.73:9090"
-QB_USERNAME = "heshui"
-QB_PASSWORD = "1wuhongli"
+QB_HOST     = ""
+QB_USERNAME = ""
+QB_PASSWORD = ""
 
 # ── 模式 2：Vertex 代理 ──────────────────────────────────────────────────────
-VERTEX_URL       = "http://23.82.99.203:3077"
+VERTEX_URL       = "http://ip:port"
 VERTEX_USERNAME  = "admin"
-VERTEX_PASSWORD  = "713aa2ac-ddd5-403a-9ddd-4132ce55289a"  # 明文，自动 MD5
-VERTEX_CLIENT_ID = "4de2521c"   # Vertex 中的下载器 ID
+VERTEX_PASSWORD  = ""  # 明文，自动 MD5
+VERTEX_CLIENT_ID = ""   # Vertex 中的下载器 ID
 
 # 代理 URL 由 VERTEX_URL + VERTEX_CLIENT_ID 自动拼合，无需手动填写：
 #   http://ip:port/proxy/client/d85456e1/
